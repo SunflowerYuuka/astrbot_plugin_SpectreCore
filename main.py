@@ -7,7 +7,7 @@ import time
     "spectrecore",
     "23q3",
     "使大模型更好的主动回复群聊中的消息，带来生动和沉浸的群聊对话体验",
-    "2.4.0",
+    "2.4.1",
     "https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore"
 )
 class SpectreCore(Star):

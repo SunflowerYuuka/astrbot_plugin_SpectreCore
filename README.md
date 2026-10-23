@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.4.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.4.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -108,6 +108,11 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.4.1 (2026-10-23)
+
+- **修复 legacy 读空气与流式冲突** - 开启读空气时，本插件的请求会完整生成后再发送，使 `<NO_RESPONSE>` 判断和 AstrBot 引用装饰生效；不修改全局流式设置。
+- **修复 model 默认引用** - 遵循 AstrBot「回复时引用发送人消息」设置，无自主引用时补上触发消息的引用，已有引用不重复添加；群聊同步兼容 @ 发送人设置。
 
 ### v2.4.0 (2026-10-23)
 

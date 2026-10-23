@@ -115,6 +115,30 @@ class QuoteUtils:
         }
 
     @staticmethod
+    def apply_default_quote(event: AstrMessageEvent, result: MessageEventResult, context: Context) -> None:
+        """直接发送绕过 AstrBot 结果装饰阶段，在无已有引用时补齐默认引用。"""
+        if not result.chain or not all(isinstance(c, (Plain, Image)) for c in result.chain):
+            return
+        try:
+            settings = QuoteUtils._get_astrbot_config(context, event.unified_msg_origin).get(
+                "platform_settings", {}
+            ) or {}
+        except Exception as e:
+            logger.debug(f"读取默认引用配置失败: {e}")
+            return
+        if not settings.get("reply_with_quote", False):
+            return
+        message_id = getattr(event.message_obj, "message_id", None)
+        if not message_id:
+            return
+        header = [Reply(id=str(message_id))]
+        if settings.get("reply_with_mention", False) and not event.is_private_chat():
+            header.append(At(qq=event.get_sender_id(), name=event.get_sender_name()))
+            if isinstance(result.chain[0], Plain):
+                result.chain[0].text = "\n" + result.chain[0].text
+        result.chain[0:0] = header
+
+    @staticmethod
     def apply(event: AstrMessageEvent, result: MessageEventResult, context: Context) -> None:
         """
         处理模型回复中的 [引用:编号] 标记：移除标记，并插入对应消息的引用

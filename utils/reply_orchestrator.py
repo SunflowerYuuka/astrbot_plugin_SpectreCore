@@ -81,6 +81,7 @@ class ReplyOrchestrator:
             QuoteUtils.apply(event, result, self.context)
             if not result.chain:
                 return
+            QuoteUtils.apply_default_quote(event, result, self.context)
             message_id = str(getattr(event.message_obj, "message_id", "") or uuid.uuid4().hex)
             reply_id = f"{event.unified_msg_origin}:{message_id}"
             now = time.time()

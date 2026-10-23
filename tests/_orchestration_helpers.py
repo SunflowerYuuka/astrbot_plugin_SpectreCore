@@ -44,6 +44,18 @@ class _StubPlain:
         self.text = text
 
 
+class _StubReply:
+    def __init__(self, id="", **kwargs):
+        self.id = id
+        self.__dict__.update(kwargs)
+
+
+class _StubAt:
+    def __init__(self, qq="", name=""):
+        self.qq = qq
+        self.name = name
+
+
 class _StubProviderRequest:
     def __init__(self, **kwargs):
         self.prompt = kwargs.get("prompt")
@@ -78,6 +90,8 @@ def install_astrbot_stub():
     all_module.MessageType = _StubMessageType
     all_module.MessageChain = _StubMessageChain
     all_module.Plain = _StubPlain
+    all_module.Reply = _StubReply
+    all_module.At = _StubAt
     for name in [
         "At", "BaseMessageComponent", "Forward", "Image", "MessageEventResult",
         "Node", "Nodes", "Reply",

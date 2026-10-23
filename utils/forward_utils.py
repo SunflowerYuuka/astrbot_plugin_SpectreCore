@@ -260,6 +260,49 @@ class ForwardUtils:
             return ForwardSegment(kind="text", text="[引用消息]")
         return ForwardSegment(kind="text", text=f"[{kind}]")
 
+    async def _prefetch_image_captions(
+        self,
+        nodes: List[ForwardNode],
+        *,
+        image_registry: Any = None,
+        caption_func: Optional[CaptionFunc] = None,
+    ) -> dict[str, Optional[str]]:
+        if caption_func is None:
+            return {}
+
+        sources: dict[str, str] = {}
+        for node in nodes:
+            for segment in node.segments:
+                if segment.kind != "image" or not segment.url:
+                    continue
+                if segment.url in sources:
+                    continue
+                if image_registry is not None and not image_registry.is_allowed(
+                    segment.url
+                ):
+                    continue
+
+                source = segment.url
+                if source.startswith("file:///"):
+                    path = source[8:]
+                    if not os.path.exists(path):
+                        continue
+                    source = path
+                sources[segment.url] = source
+
+        if not sources:
+            return {}
+
+        urls = list(sources)
+        results = await asyncio.gather(
+            *(caption_func(sources[url]) for url in urls),
+            return_exceptions=True,
+        )
+        return {
+            url: result if isinstance(result, str) else None
+            for url, result in zip(urls, results)
+        }
+
     async def _render_nodes(
         self,
         nodes: List[ForwardNode],
@@ -274,6 +317,11 @@ class ForwardUtils:
 
         limit = self.max_nodes if self.max_nodes > 0 else 0
         shown_nodes = nodes[:limit] if limit else nodes
+        captions = await self._prefetch_image_captions(
+            shown_nodes,
+            image_registry=image_registry,
+            caption_func=caption_func,
+        )
         lines = ["[合并转发消息]"]
         used = len(lines[0])
 
@@ -284,6 +332,7 @@ class ForwardUtils:
                 seen=seen,
                 image_registry=image_registry,
                 caption_func=caption_func,
+                captions=captions,
             )
             if not content:
                 content = "[空消息]"
@@ -317,6 +366,7 @@ class ForwardUtils:
         seen: set[str],
         image_registry: Any = None,
         caption_func: Optional[CaptionFunc] = None,
+        captions: Optional[dict[str, Optional[str]]] = None,
     ) -> str:
         parts: List[str] = []
         for segment in segments:
@@ -328,6 +378,7 @@ class ForwardUtils:
                         segment.url,
                         image_registry=image_registry,
                         caption_func=caption_func,
+                        captions=captions,
                     )
                 )
             elif segment.kind == "forward":
@@ -373,13 +424,16 @@ class ForwardUtils:
         *,
         image_registry: Any = None,
         caption_func: Optional[CaptionFunc] = None,
+        captions: Optional[dict[str, Optional[str]]] = None,
     ) -> str:
         label = image_registry.label_for(url) if image_registry is not None else None
         if image_registry is not None and label is None:
             return "[图片]"
 
         caption = None
-        if caption_func is not None:
+        if captions is not None and url in captions:
+            caption = captions[url]
+        elif caption_func is not None:
             caption_source = url
             if url.startswith("file:///"):
                 path = url[8:]

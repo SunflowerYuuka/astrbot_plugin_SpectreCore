@@ -12,12 +12,17 @@ class ImageRegistry:
     def allow_all(self) -> None:
         self._allowed = None
 
+    def is_allowed(self, url: Optional[str]) -> bool:
+        if not url:
+            return False
+        return self._allowed is None or url in self._allowed
+
     def label_for(self, url: Optional[str]) -> Optional[int]:
         if not url:
             return None
         if url in self._labels:
             return self._labels[url]
-        if self._allowed is not None and url not in self._allowed:
+        if not self.is_allowed(url):
             return None
         label = len(self._urls) + 1
         self._urls.append(url)

@@ -132,6 +132,12 @@
                 "hint": "用于描述图像转述的提示词，根据你的token预算来调整",
                 "default": "请直接简短描述这张图片"
             },
+            "image_caption_concurrency": {
+                "type": "int",
+                "description": "图像转述并发数",
+                "hint": "所有会话合计同时进行的图像转述请求数量。过低会排队，过高可能触发提供商限流，建议 3-5",
+                "default": 3
+            },
             "enable_image_persistence": {
                 "type": "bool",
                 "description": "是否开启图片持久化存储",

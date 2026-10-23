@@ -1,3 +1,4 @@
+import asyncio
 import importlib.util
 import pathlib
 import sys
@@ -190,7 +191,7 @@ class ForwardRenderTests(unittest.IsolatedAsyncioTestCase):
 
         registry = ImageRegistry()
         component = nodes(
-            node("小明", [plain("看这个"), image("cat.jpg")], uin="10001"),
+            node("小明", [plain("看看"), image("cat.jpg")], uin="10001"),
         )
 
         rendered = await ForwardUtils().render(
@@ -202,6 +203,40 @@ class ForwardRenderTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(rendered)
         self.assertIn("[图片#1：一只猫]", rendered)
         self.assertEqual(registry.urls, ["cat.jpg"])
+
+    async def test_forward_images_are_prefetched_in_parallel(self):
+        calls = []
+        active = 0
+        max_active = 0
+
+        async def caption(url):
+            nonlocal active, max_active
+            calls.append(url)
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                await asyncio.sleep(0.02)
+            finally:
+                active -= 1
+            return f"caption:{url}"
+
+        registry = ImageRegistry()
+        component = nodes(
+            node("A", [image("a.jpg")], uin="1"),
+            node("B", [image("b.jpg")], uin="2"),
+            node("C", [image("c.jpg")], uin="3"),
+        )
+
+        rendered = await ForwardUtils().render(
+            component,
+            image_registry=registry,
+            caption_func=caption,
+        )
+
+        self.assertIsNotNone(rendered)
+        self.assertEqual(sorted(calls), ["a.jpg", "b.jpg", "c.jpg"])
+        self.assertGreater(max_active, 1)
+        self.assertIn("[图片#1：caption:a.jpg]", rendered)
 
     async def test_max_nodes_marks_remaining_messages(self):
         component = nodes(

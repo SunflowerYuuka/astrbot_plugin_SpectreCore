@@ -126,8 +126,12 @@ class MessageUtils:
                                     continue
                                 image = image_path
 
-                            caption = await ImageCaptionUtils.generate_image_caption(image, umo=umo)
                             label = image_registry.label_for(image_url) if image_registry else None
+                            if image_registry is not None and label is None:
+                                outline += "[图片]"
+                                continue
+
+                            caption = await ImageCaptionUtils.generate_image_caption(image, umo=umo)
                             if label:
                                 caption_text = f"：{caption}" if caption else ""
                                 outline += f"[图片#{label}{caption_text}]"

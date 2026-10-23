@@ -59,6 +59,16 @@ class ImageRegistryTests(unittest.TestCase):
         self.assertIsNone(registry.label_for(None))
         self.assertEqual(registry.urls, [])
 
+    def test_is_allowed_checks_without_assigning_labels(self):
+        registry = ImageRegistry({"b.jpg"})
+
+        self.assertFalse(registry.is_allowed("a.jpg"))
+        self.assertTrue(registry.is_allowed("b.jpg"))
+        self.assertEqual(registry.urls, [])
+
+        registry.label_for("b.jpg")
+        self.assertEqual(registry.urls, ["b.jpg"])
+
 
 class ImageSelectionTests(unittest.TestCase):
     def setUp(self):

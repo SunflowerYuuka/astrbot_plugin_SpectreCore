@@ -157,6 +157,8 @@ class LLMUtils:
     
     @staticmethod
     async def call_llm(event: AstrMessageEvent, config: AstrBotConfig, context: Context) -> ProviderRequest:
+        if config.get("read_air", False):
+            event.set_extra("enable_streaming", False)
         return await LLMUtils.build_request(event, config, context, decision_mode=False)
 
     @staticmethod

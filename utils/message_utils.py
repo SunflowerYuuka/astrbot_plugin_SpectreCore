@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 import os
 import time
 from datetime import datetime
+from .forward_utils import ForwardUtils
 from .image_caption import ImageCaptionUtils
 from .image_context import ImageRegistry
 from .quote_utils import QuoteUtils
@@ -17,7 +18,7 @@ class MessageUtils:
     """
         
     @staticmethod
-    async def format_history_for_llm(history_messages: List[AstrBotMessage], max_messages: int = 20, umo: Optional[str] = None, quote_targets: Optional[Dict[str, Dict[str, Any]]] = None, image_registry: Optional[ImageRegistry] = None) -> str:
+    async def format_history_for_llm(history_messages: List[AstrBotMessage], max_messages: int = 20, umo: Optional[str] = None, quote_targets: Optional[Dict[str, Dict[str, Any]]] = None, image_registry: Optional[ImageRegistry] = None, forward_utils: Optional[ForwardUtils] = None) -> str:
         """
         将历史消息列表格式化为适合输入给大模型的文本格式
 
@@ -27,6 +28,7 @@ class MessageUtils:
             umo: unified_msg_origin，用于 UMO 路由
             quote_targets: 可选，传入字典时为可引用的消息编号，并将 {编号: 引用目标} 写入该字典
             image_registry: 可选，用于给图片分配编号并收集要随请求附带的图片
+            forward_utils: 可选，用于展开合并转发消息
 
         Returns:
             格式化后的历史消息文本
@@ -59,7 +61,7 @@ class MessageUtils:
                     pass
             
             # 获取消息内容 (异步调用)
-            message_content = await MessageUtils.outline_message_list(msg.message, umo=umo, image_registry=image_registry) if hasattr(msg, "message") and msg.message else ""
+            message_content = await MessageUtils.outline_message_list(msg.message, umo=umo, image_registry=image_registry, forward_utils=forward_utils) if hasattr(msg, "message") and msg.message else ""
             
             # 格式化该条消息
             message_text = ""
@@ -83,7 +85,7 @@ class MessageUtils:
         return formatted_text
            
     @staticmethod
-    async def outline_message_list(message_list: List[BaseMessageComponent], umo: Optional[str] = None, image_registry: Optional[ImageRegistry] = None) -> str:
+    async def outline_message_list(message_list: List[BaseMessageComponent], umo: Optional[str] = None, image_registry: Optional[ImageRegistry] = None, forward_utils: Optional[ForwardUtils] = None) -> str:
         """
         获取消息概要。
         使用类型检查而不是类实例检查，避免依赖不存在的类。
@@ -92,6 +94,7 @@ class MessageUtils:
             message_list: 消息组件列表
             umo: unified_msg_origin，用于 UMO 路由
             image_registry: 可选，用于给图片分配编号并收集要随请求附带的图片
+            forward_utils: 可选，用于展开合并转发消息
         """
         outline = ""
         for i in message_list:
@@ -103,7 +106,7 @@ class MessageUtils:
                 
                 # 特别优化 Reply 组件的处理
                 if component_type == "reply" or isinstance(i, Reply):
-                    outline += await MessageUtils._format_reply_component(i, umo=umo, image_registry=image_registry)
+                    outline += await MessageUtils._format_reply_component(i, umo=umo, image_registry=image_registry, forward_utils=forward_utils)
                     continue
                 
                 # 根据类型处理不同的消息组件
@@ -167,7 +170,15 @@ class MessageUtils:
                 elif component_type == "poke" or isinstance(i, Poke):
                     outline += f"[戳一戳 对:{getattr(i, 'qq', '')}]"
                 elif component_type in ["forward", "node", "nodes"] or isinstance(i, (Forward, Node, Nodes)):
-                    outline += f"[合并转发消息]"
+                    if forward_utils is not None:
+                        outline += await MessageUtils._format_forward_component(
+                            i,
+                            umo=umo,
+                            image_registry=image_registry,
+                            forward_utils=forward_utils,
+                        )
+                    else:
+                        outline += f"[合并转发消息]"
                 elif component_type == "json" or isinstance(i, Json):
                     # JSON处理逻辑（AstrBot 会把 data 解析为 dict，旧的历史记录中可能仍是 str）
                     data = getattr(i, 'data', None)
@@ -214,7 +225,23 @@ class MessageUtils:
         return outline
 
     @staticmethod
-    async def _format_reply_component(reply_component: Reply, umo: Optional[str] = None, image_registry: Optional[ImageRegistry] = None) -> str:
+    async def _format_forward_component(component: BaseMessageComponent, umo: Optional[str] = None, image_registry: Optional[ImageRegistry] = None, forward_utils: Optional[ForwardUtils] = None) -> str:
+        """将合并转发组件展开为文本，失败时回退为占位符。"""
+        if forward_utils is None:
+            return "[合并转发消息]"
+        try:
+            rendered = await forward_utils.render(
+                component,
+                image_registry=image_registry,
+                caption_func=lambda url: ImageCaptionUtils.generate_image_caption(url, umo=umo),
+            )
+            return rendered if rendered is not None else "[合并转发消息]"
+        except Exception as e:
+            logger.error(f"展开合并转发消息失败: {e}")
+            return "[合并转发消息]"
+
+    @staticmethod
+    async def _format_reply_component(reply_component: Reply, umo: Optional[str] = None, image_registry: Optional[ImageRegistry] = None, forward_utils: Optional[ForwardUtils] = None) -> str:
         """
         优化格式化引用回复组件
 
@@ -222,6 +249,7 @@ class MessageUtils:
             reply_component: 回复组件
             umo: unified_msg_origin，用于 UMO 路由
             image_registry: 可选，用于给引用消息中的图片分配编号
+            forward_utils: 可选，用于展开引用消息中的合并转发
         """
         try:
             # 构建发送者信息
@@ -241,7 +269,7 @@ class MessageUtils:
             
             # 优先使用 chain（原始消息组件）
             if hasattr(reply_component, 'chain') and reply_component.chain:
-                reply_content = await MessageUtils.outline_message_list(reply_component.chain, umo=umo, image_registry=image_registry)
+                reply_content = await MessageUtils.outline_message_list(reply_component.chain, umo=umo, image_registry=image_registry, forward_utils=forward_utils)
             # 其次使用 message_str（纯文本消息）
             elif hasattr(reply_component, 'message_str') and reply_component.message_str:
                 reply_content = reply_component.message_str
@@ -251,9 +279,12 @@ class MessageUtils:
             else:
                 reply_content = "[内容不可用]"
             
-            # 限制回复内容长度，避免过长
-            if len(reply_content) > 150:
-                reply_content = reply_content[:150] + "..."
+            # 限制回复内容长度，避免过长；合并转发允许使用其自身长度上限
+            max_reply_chars = 150
+            if forward_utils is not None and "[合并转发消息]" in reply_content:
+                max_reply_chars = max(max_reply_chars, forward_utils.max_chars)
+            if len(reply_content) > max_reply_chars:
+                reply_content = reply_content[:max_reply_chars] + "..."
             
             # 构建格式化的回复显示
             formatted_reply = f"「↪ 引用消息 {sender_info}：{reply_content}」"

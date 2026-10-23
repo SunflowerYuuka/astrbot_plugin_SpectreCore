@@ -7,7 +7,7 @@ import time
     "spectrecore",
     "23q3",
     "使大模型更好的主动回复群聊中的消息，带来生动和沉浸的群聊对话体验",
-    "2.2.1",
+    "2.3.0",
     "https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore"
 )
 class SpectreCore(Star):
@@ -45,7 +45,11 @@ class SpectreCore(Star):
         """处理消息的通用逻辑：保存历史记录并尝试回复"""
         # 过滤空消息(napcat会发送私聊对方正在输入的状态，导致astrbot识别为空消息)
         message_outline = event.get_message_outline()
-        if not message_outline or message_outline.strip() == "":
+        has_forward = any(
+            isinstance(component, (Forward, Node, Nodes))
+            for component in getattr(getattr(event, "message_obj", None), "message", None) or []
+        )
+        if (not message_outline or message_outline.strip() == "") and not has_forward:
             logger.debug("收到空消息，忽略处理")
             return
 

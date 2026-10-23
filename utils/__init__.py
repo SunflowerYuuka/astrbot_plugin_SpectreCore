@@ -3,6 +3,7 @@
 """
 
 from .history_storage import HistoryStorage
+from .forward_utils import ForwardUtils
 from .image_context import ImageRegistry
 from .message_utils import MessageUtils
 from .image_caption import ImageCaptionUtils
@@ -14,6 +15,7 @@ from .quote_utils import QuoteUtils
 
 __all__ = [
     "HistoryStorage",
+    "ForwardUtils",
     "ImageRegistry",
     "MessageUtils",
     "ImageCaptionUtils",

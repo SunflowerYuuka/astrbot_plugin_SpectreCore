@@ -145,5 +145,41 @@
                 "default": 7
             }
         }
+    },
+    "forward_processing": {
+        "description": "合并转发消息处理",
+        "type": "object",
+        "items": {
+            "parse_forward": {
+                "type": "bool",
+                "description": "解析合并转发消息",
+                "hint": "开启后会把合并转发展开为带发送者的聊天记录输入给模型。需要协议端支持 get_forward_msg（aiocqhttp/NapCat 等），获取失败时自动回退为占位符；会产生额外的协议端请求，建议按需开启",
+                "default": false
+            },
+            "max_depth": {
+                "type": "int",
+                "description": "合并转发解析层数",
+                "hint": "最多展开多少层嵌套的合并转发，层数越高 token 消耗越大",
+                "default": 2
+            },
+            "max_nodes": {
+                "type": "int",
+                "description": "单次展开消息条数上限",
+                "hint": "每条合并转发最多读取多少条消息，超出部分会提示还有多少条未显示",
+                "default": 50
+            },
+            "max_chars": {
+                "type": "int",
+                "description": "合并转发文本长度上限",
+                "hint": "单条合并转发展开后最多输入给模型多少字符，超出会自动截断",
+                "default": 2000
+            },
+            "fetch_timeout": {
+                "type": "int",
+                "description": "合并转发获取超时（秒）",
+                "hint": "调用 get_forward_msg 的最长等待时间，超时后回退为占位符",
+                "default": 5
+            }
+        }
     }
 }

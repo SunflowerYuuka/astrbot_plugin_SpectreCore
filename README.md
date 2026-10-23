@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.2.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.3.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -41,6 +41,7 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 
 - 📸 **支持图片理解** - 支持图片转述功能，也可以直接输入图片
 - 🧩 **图片上下文关联** - 聊天记录和当前消息中的图片会带 `[图片#编号]`，模型能判断图片属于哪条消息、由谁发送；用户引用图片回复时也能看到原图，避免把无关图片强行关联
+- 📨 **合并转发解析** - 可开启将 QQ 合并转发展开为按发送者排列的聊天记录，支持嵌套转发和转发内图片；获取失败时自动回退为占位符
 - 💾 **图片持久化存储** - 自动保存聊天中的图片到本地，解决图片链接过期问题，支持自动清理过期图片
 - 🔍 **支持读空气** - AI 可智能判断何时应该回复，何时保持沉默
 - 💬 **模型自主引用** - AI 像真人一样自己决定是否引用、引用哪条消息，开启 AstrBot 引用回复时也不再引用错位
@@ -72,6 +73,12 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 
 ## 📋 最新版本
 
+### v2.3.0 (2026-10-23)
+
+- ✨ **合并转发解析** - 将 `Forward` / `Node` / `Nodes` 展开为带发送者和时间的聊天记录，支持 OneBot `get_forward_msg` 拉取、嵌套转发和转发内图片；失败时保持 `[合并转发消息]` 占位，不影响正常回复
+- ✨ **新增转发配置** - `forward_processing.parse_forward`（默认关闭）、`max_depth`（默认 2）、`max_nodes`（默认 50）、`max_chars`（默认 2000）、`fetch_timeout`（默认 5 秒），用于控制 token 消耗和请求耗时
+- 🔧 **上下文统一** - 转发里的图片会复用 `[图片#编号]`，当前消息和引用消息中的转发图片会随请求附带；历史转发中的图片暂不参与历史图片筛选，只显示为 `[图片]`
+
 ### v2.2.1 (2026-10-23)
 
 - ✨ **图片上下文关联** - 聊天记录、当前消息和引用消息中的图片会统一带上 `[图片#编号]`，模型可以判断图片属于哪条消息、由谁发送；用户回复/吐槽某张图片时也能看到对应原图 [#104](https://github.com/23q3/astrbot_plugin_SpectreCore/issues/104)
@@ -94,12 +101,12 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - 这次更新是一次完全重构，抛弃了使用协议端api获取聊天记录的方式，而是基于Astrbot本身。
 
 - 这导致了 对于aiocqhttp平台 插件不再支持以下功能:
-  - 解析合并转发消息
   - 解析猜拳骰子结果
   - 获取QQ表情描述
   - 完全溯源的引用消息
   - 获取被@人的用户名
 
+- 合并转发解析已在 v2.3.0 通过协议端 `get_forward_msg` 恢复；如果你的协议端不支持该接口，转发内容会显示为 `[合并转发消息]`。
 - 如果你有相关需求，可以下载之前的版本，但请注意旧版本已不再维护。
 
 ## 🔗 相关项目

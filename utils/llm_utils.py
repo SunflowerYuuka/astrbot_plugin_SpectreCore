@@ -2,6 +2,7 @@ from astrbot.api.all import *
 from typing import Dict, List, Optional, Any
 import time
 import threading
+from .forward_utils import ForwardUtils, fetch_forward_via_event
 from .history_storage import HistoryStorage
 from .image_context import (
     ImageRegistry,
@@ -224,6 +225,17 @@ class LLMUtils:
         context_messages = image_processing.get("image_context_messages", 10)
         context_max_images = image_processing.get("image_context_max_images", 5)
 
+        forward_processing = config.get("forward_processing", {}) or {}
+        forward_utils = None
+        if forward_processing.get("parse_forward", False):
+            forward_utils = ForwardUtils(
+                fetch_forward=lambda forward_id: fetch_forward_via_event(event, forward_id),
+                max_depth=forward_processing.get("max_depth", 2),
+                max_nodes=forward_processing.get("max_nodes", 50),
+                max_chars=forward_processing.get("max_chars", 2000),
+                fetch_timeout=forward_processing.get("fetch_timeout", 5),
+            )
+
         image_registry = ImageRegistry()
         try:
             if history_messages:
@@ -248,7 +260,7 @@ class LLMUtils:
                         select_context_urls(history_image_urls, context_messages, context_max_images)
                     )
                     image_registry = ImageRegistry(allowed_urls=allowed_urls)
-                    formatted_history = await MessageUtils.format_history_for_llm(messages_for_display, max_messages=history_limit, umo=umo, quote_targets=quote_targets, image_registry=image_registry)
+                    formatted_history = await MessageUtils.format_history_for_llm(messages_for_display, max_messages=history_limit, umo=umo, quote_targets=quote_targets, image_registry=image_registry, forward_utils=forward_utils)
                     env_description += "\n\n以下是最近的聊天记录：\n" + formatted_history
                 else:
                     env_description += "\n\n你没看见任何聊天记录，看来最近没有消息。"
@@ -284,7 +296,7 @@ class LLMUtils:
 
         # prompt 只保留用户当前消息，使用 MessageUtils 确保图片被转述
         if hasattr(event, "message_obj") and hasattr(event.message_obj, "message"):
-            prompt = await MessageUtils.outline_message_list(event.message_obj.message, umo=umo, image_registry=image_registry)
+            prompt = await MessageUtils.outline_message_list(event.message_obj.message, umo=umo, image_registry=image_registry, forward_utils=forward_utils)
         else:
             prompt = event.get_message_outline()
         if current_target:

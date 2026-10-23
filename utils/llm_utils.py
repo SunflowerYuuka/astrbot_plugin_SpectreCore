@@ -355,6 +355,11 @@ class LLMUtils:
                 event.set_extra(QuoteUtils.EXTRA_KEY, quote_targets)
                 env_description += QuoteUtils.build_instruction(quote_mode, current_no)
 
+        reply_prompt = config.get("autonomous_reply_prompt", {}) or {}
+        extra_prompt = reply_prompt.get("text", "")
+        if reply_prompt.get("enabled", False) and isinstance(extra_prompt, str) and extra_prompt.strip():
+            system_prompt += "\n\n[本次自主回复附加提示词]\n" + extra_prompt.strip()
+
         if decision_mode:
             system_prompt += build_decision_instruction()
         elif config.get("read_air", False):

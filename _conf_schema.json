@@ -43,6 +43,24 @@
         "hint":"开启后会根据群聊消息自动判断是否需要回复，建议提示好 AI 在什么情况下回复。legacy 模式下本插件请求会等待完整生成后再发送，确保读空气判断和引用回复生效，不修改 AstrBot 全局流式设置。",
         "default":false
     },
+    "autonomous_reply_prompt": {
+        "description": "自主回复附加提示词",
+        "type": "object",
+        "hint": "仅追加到本插件本次请求，覆盖概率/关键词回复、model 编排和 /sc callllm；不修改 AstrBot 人格。",
+        "items": {
+            "enabled": {
+                "description": "启用附加提示词",
+                "type": "bool",
+                "default": false
+            },
+            "text": {
+                "description": "自定义附加提示词",
+                "type": "text",
+                "hint": "可填写多行群聊参与规则。留空不生效。读空气、JSON 输出协议和引用规则仍由插件追加，请勿要求与之冲突的输出格式。",
+                "default": ""
+            }
+        }
+    },
     "smart_quote":{
         "description":"模型自主引用消息",
         "type":"bool",

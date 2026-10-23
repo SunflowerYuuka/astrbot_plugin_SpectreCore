@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.4.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.5.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -64,6 +64,21 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 
 3. 打开插件的配置界面，配置好相关选项，即可开始使用
 
+### 自主回复附加提示词（默认关闭）
+
+在插件配置的「自主回复附加提示词」中启用开关，并在多行文本框填写自定义内容。适用于 legacy 的概率／关键词回复、model 编排模式和 `/sc callllm` 手动测试；普通 AstrBot 对话不会由本功能追加提示词。
+
+```json
+{
+  "autonomous_reply_prompt": {
+    "enabled": true,
+    "text": "群聊中的消息默认是在群友之间交流，不要默认是在对你说。先辨认发送者、图片发布者和引用对象，不要把自己代入其他人的身份。没有自然且具体的补充时保持沉默。避免主动提出整理材料、做笔录等助手式服务。"
+  }
+}
+```
+
+内容仅拼接到本次请求的 `system_prompt`，不修改人格或共享配置，不作为消息写入插件历史；请求结束后自然失效，无需删除。关闭开关或内容为空白时不追加。插件仍会追加读空气、JSON 输出协议和引用规则；自定义内容应描述参与方式和表达风格，避免要求与这些规则冲突的输出格式。提示词能辅助判断，不能保证纠正输入中错误的发送者或引用关系。
+
 ### 并发回复编排（默认关闭）
 
 在插件配置中开启 `reply_orchestration.enabled` 并将 `decision_mode` 设为 `model`。插件先检查群启用、禁言、关键词、@、冷却等规则，再通过一次模型请求同时判断是否回复并生成内容。`provider_id` 填 AstrBot 已配置的文本模型提供商 ID；留空时使用当前会话的提供商。群白名单、黑名单和私聊开关仍生效。
@@ -108,6 +123,12 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.5.0 (2026-10-23)
+
+- 新增默认关闭的自主回复附加提示词，支持在配置中填写多行群聊参与规则。
+- 同时覆盖 legacy 概率／关键词回复、model 编排与手动测试；仅对本次请求生效，不修改人格或插件历史。
+- 保留读空气、JSON 决策和引用提示，并验证并发与连续请求不会重复追加或残留。
 
 ### v2.4.1 (2026-10-23)
 

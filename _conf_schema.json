@@ -86,7 +86,13 @@
             "blacklist_keywords": {
                 "description": "黑名单关键词",
                 "type": "list",
-                "hint": "如果消息中包含这些关键词，则不回复该消息",
+                "hint": "如果消息中任意位置包含这些关键词，则不回复。不要用 / 屏蔽指令，否则网址也会命中；请将 / 填入「忽略的指令前缀」。",
+                "default": []
+            },
+            "ignored_prefixes": {
+                "description": "忽略的指令前缀",
+                "type": "list",
+                "hint": "去掉消息开头空白后，仅匹配开头。可填写 /、! 等；/help 会跳过，https://example.com 和正文中的 / 不会因此跳过。仅控制本插件自主回复，不阻止指令执行。默认空列表，不过滤。请从黑名单关键词移除对应前缀。",
                 "default": []
             },
             "method":{

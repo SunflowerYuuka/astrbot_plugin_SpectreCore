@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 import random
 import time
 from .llm_utils import LLMUtils
+from .reply_filters import matches_ignored_prefix
 
 class ReplyDecision:
     @staticmethod
@@ -44,6 +45,10 @@ class ReplyDecision:
                 logger.debug(f"当前处于临时静默状态，不进行回复")
                 return False
                 
+            if matches_ignored_prefix(event.get_message_outline(), config):
+                logger.debug("消息命中忽略的指令前缀，不进行自主回复")
+                return False
+
             # 检查消息是否包含黑名单关键词
             blacklist_keywords = config.get("model_frequency", {}).get("blacklist_keywords", [])
             if blacklist_keywords and ReplyDecision._check_blacklist_keywords(event, blacklist_keywords):

@@ -3,7 +3,7 @@ display_name: 🌟 SpectreCore
 short_desc: 让大模型理解图片、合并转发与群聊上下文，像群友一样自然地参与对话
 desc: 使大模型更好的主动回复群聊中的消息，带来生动和沉浸的群聊对话体验。支持图片编号关联、合并转发解析、图片上下文筛选、读空气、模型自主引用与临时禁言。
 help: 自动检测群聊消息并让AI模型进行回复，让群聊更加生动有趣。
-version: 2.5.0 # 插件版本号。格式：1.1.1 或者 1.1
+version: 2.5.1 # 插件版本号。格式：1.1.1 或者 1.1
 author: 23q3 # 作者
 repo: https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore # 插件的仓库地址
 astrbot_version: ">=4.16,<5" # 支持的 AstrBot 版本范围

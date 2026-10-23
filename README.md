@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.5.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.5.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -63,6 +63,23 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
    ```
 
 3. 打开插件的配置界面，配置好相关选项，即可开始使用
+
+### 忽略指令消息，保留网址回复
+
+在「决定调用模型回复的频率 → 忽略的指令前缀」中填写 `/` 等指令前缀。过滤仅检查去掉开头空白后的消息开头，legacy 和 model 模式均生效；只跳过本插件自主回复，不阻止 AstrBot 或其他插件执行指令。
+
+```json
+{
+  "model_frequency": {
+    "ignored_prefixes": ["/"],
+    "blacklist_keywords": []
+  }
+}
+```
+
+`/help` 和 `  /签到` 会跳过；`https://example.com/path`、`看看 https://example.com`、`选项 开/关` 不会因 `/` 前缀被跳过。前缀列表默认空，填写多个时任意命中即跳过。
+
+**如果此前把 `/` 写入「黑名单关键词」，请将它移除并填写到「忽略的指令前缀」。** 黑名单仍按任意位置包含匹配，不会自动迁移配置；保留 `/` 在黑名单中仍会过滤网址。上述示例的空黑名单仅作演示，实际使用时保留其他需要过滤的关键词。
 
 ### 自主回复附加提示词（默认关闭）
 
@@ -123,6 +140,11 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.5.1 (2026-10-23)
+
+- 新增独立的指令前缀过滤，消息以 `/` 等配置前缀开头时跳过自主回复，避免使用包含黑名单误伤网址。
+- legacy 和 model 使用相同匹配规则，忽略开头空白、空前缀；黑名单保留原有包含匹配。
 
 ### v2.5.0 (2026-10-23)
 

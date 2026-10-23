@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from astrbot.api.all import AstrBotConfig, AstrMessageEvent, logger
 from .history_storage import HistoryStorage
 from .llm_utils import LLMUtils
+from .reply_filters import matches_ignored_prefix
 
 
 @dataclass(frozen=True)
@@ -80,6 +81,9 @@ class RuleGate:
         text = (event.get_message_outline() or "").strip()
         if not text:
             return GateResult("skip", "empty")
+
+        if matches_ignored_prefix(text, config):
+            return GateResult("skip", "command_prefix")
 
         if str(event.get_sender_id()) == str(event.get_self_id()):
             return GateResult("skip", "self")

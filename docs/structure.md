@@ -23,6 +23,7 @@ astrbot_plugin_SpectreCore/
     ├── persona_utils.py   # 人格处理工具
     ├── reply_decision.py  # 回复决策工具
     ├── message_utils.py   # 消息处理工具
+    ├── image_context.py   # 图片编号与上下文筛选工具
     ├── quote_utils.py     # 模型自主引用工具
     └── image_caption.py   # 图片描述工具
 ```

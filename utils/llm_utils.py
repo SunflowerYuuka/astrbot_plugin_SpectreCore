@@ -3,6 +3,13 @@ from typing import Dict, List, Optional, Any
 import time
 import threading
 from .history_storage import HistoryStorage
+from .image_context import (
+    ImageRegistry,
+    build_image_instruction,
+    collect_image_urls,
+    select_context_urls,
+    select_recent_urls,
+)
 from .message_utils import MessageUtils
 from .quote_utils import QuoteUtils
 from astrbot.core.provider.entites import ProviderRequest
@@ -212,6 +219,12 @@ class LLMUtils:
         quote_targets = {} if quote_mode else None
         current_target = None
 
+        image_processing = config.get("image_processing", {})
+        image_count = image_processing.get("image_count", 0)
+        context_messages = image_processing.get("image_context_messages", 10)
+        context_max_images = image_processing.get("image_context_max_images", 5)
+
+        image_registry = ImageRegistry()
         try:
             if history_messages:
                 # 获取当前消息的 message_id 用于精确排除
@@ -221,8 +234,21 @@ class LLMUtils:
                 else:
                     # 回退到排除最后一条
                     history_for_context = history_messages[:-1] if len(history_messages) > 1 else []
-                if history_for_context:
-                    formatted_history = await MessageUtils.format_history_for_llm(history_for_context, max_messages=history_limit, umo=umo, quote_targets=quote_targets)
+
+                # 只对实际会展示给模型的历史消息做图片筛选，避免出现没有编号的孤立图片
+                messages_for_display = history_for_context[-history_limit:] if history_limit > 0 else []
+
+                if messages_for_display:
+                    history_image_urls = [
+                        collect_image_urls(getattr(message, "message", None))
+                        for message in messages_for_display
+                    ]
+                    allowed_urls = set(select_recent_urls(history_image_urls, image_count))
+                    allowed_urls.update(
+                        select_context_urls(history_image_urls, context_messages, context_max_images)
+                    )
+                    image_registry = ImageRegistry(allowed_urls=allowed_urls)
+                    formatted_history = await MessageUtils.format_history_for_llm(messages_for_display, max_messages=history_limit, umo=umo, quote_targets=quote_targets, image_registry=image_registry)
                     env_description += "\n\n以下是最近的聊天记录：\n" + formatted_history
                 else:
                     env_description += "\n\n你没看见任何聊天记录，看来最近没有消息。"
@@ -253,52 +279,19 @@ class LLMUtils:
         # 将环境描述追加到 system_prompt
         system_prompt += env_description
 
-        # 图片相关处理
-        image_urls = []
-
-        # 首先收集当前消息链中的图片（用户刚发送的，不受 image_count 限制）
-        if hasattr(event, "message_obj") and hasattr(event.message_obj, "message"):
-            for component in event.message_obj.message:
-                if isinstance(component, Image):
-                    try:
-                        url = component.file or component.url
-                        if url and url not in image_urls:
-                            image_urls.append(url)
-                    except Exception as e:
-                        logger.warning(f"处理当前消息图片URL时出错: {e}")
-                        continue
-
-        # 然后从历史消息中补充收集图片（受 image_count 限制）
-        history_image_count = config.get("image_processing", {}).get("image_count", 0)
-        if history_image_count and history_messages:
-            messages_to_show = history_messages[-history_limit:] if len(history_messages) > history_limit else history_messages
-
-            for message in reversed(messages_to_show):
-                if hasattr(message, "message") and message.message:
-                    for component in message.message:
-                        if isinstance(component, Image):
-                            try:
-                                url = component.file or component.url
-                                if url and url not in image_urls:
-                                    image_urls.append(url)
-                                    if len(image_urls) >= history_image_count:
-                                        break
-                            except Exception as e:
-                                logger.warning(f"处理历史消息图片URL时出错: {e}")
-                                continue
-                    if len(image_urls) >= history_image_count:
-                        break
-
-            if image_urls:
-                system_prompt += f"\n\n已经按照从晚到早的顺序为你提供了聊天记录中的{len(image_urls)}张图片，你可以直接查看并理解它们。这些图片出现在聊天记录中。"
+        # 历史图片已经完成筛选；当前消息及其引用消息中的图片始终附带
+        image_registry.allow_all()
 
         # prompt 只保留用户当前消息，使用 MessageUtils 确保图片被转述
         if hasattr(event, "message_obj") and hasattr(event.message_obj, "message"):
-            prompt = await MessageUtils.outline_message_list(event.message_obj.message, umo=umo)
+            prompt = await MessageUtils.outline_message_list(event.message_obj.message, umo=umo, image_registry=image_registry)
         else:
             prompt = event.get_message_outline()
         if current_target:
             current_target["content"] = prompt
+
+        image_urls = image_registry.urls
+        system_prompt += build_image_instruction(len(image_urls))
 
         return event.request_llm(
             prompt=prompt,

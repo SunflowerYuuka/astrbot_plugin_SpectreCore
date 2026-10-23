@@ -3,6 +3,7 @@
 """
 
 from .history_storage import HistoryStorage
+from .image_context import ImageRegistry
 from .message_utils import MessageUtils
 from .image_caption import ImageCaptionUtils
 from .llm_utils import LLMUtils
@@ -13,6 +14,7 @@ from .quote_utils import QuoteUtils
 
 __all__ = [
     "HistoryStorage",
+    "ImageRegistry",
     "MessageUtils",
     "ImageCaptionUtils",
     "LLMUtils",

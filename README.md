@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.2.0-blue.svg?style=flat-square)](https://github.com/23q3/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.2.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -40,6 +40,7 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 ## ✨ 特性
 
 - 📸 **支持图片理解** - 支持图片转述功能，也可以直接输入图片
+- 🧩 **图片上下文关联** - 聊天记录和当前消息中的图片会带 `[图片#编号]`，模型能判断图片属于哪条消息、由谁发送；用户引用图片回复时也能看到原图，避免把无关图片强行关联
 - 💾 **图片持久化存储** - 自动保存聊天中的图片到本地，解决图片链接过期问题，支持自动清理过期图片
 - 🔍 **支持读空气** - AI 可智能判断何时应该回复，何时保持沉默
 - 💬 **模型自主引用** - AI 像真人一样自己决定是否引用、引用哪条消息，开启 AstrBot 引用回复时也不再引用错位
@@ -57,7 +58,7 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
    或点击右下角加号，输入本插件仓库链接安装：
 
    ```
-   https://github.com/23q3/astrbot_plugin_SpectreCore
+   https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore
    ```
 
 3. 打开插件的配置界面，配置好相关选项，即可开始使用
@@ -70,6 +71,12 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.2.1 (2026-10-23)
+
+- ✨ **图片上下文关联** - 聊天记录、当前消息和引用消息中的图片会统一带上 `[图片#编号]`，模型可以判断图片属于哪条消息、由谁发送；用户回复/吐槽某张图片时也能看到对应原图 [#104](https://github.com/23q3/astrbot_plugin_SpectreCore/issues/104)
+- ✨ **新增图片上下文配置** - `image_context_messages`（默认 10，向前查看多少条消息）和 `image_context_max_images`（默认 5，最多附带多少张上下文图片），由模型自行判断哪些图片与当前对话相关
+- 🐛 **修复图片错误关联** - 历史图片不再无归属地混在一起，避免模型把两张不相关的图片强行联系在一起；当前消息及其引用消息中的图片始终提供，不受 `image_count` 限制
 
 ### v2.2.0 (2026-09-24)
 
@@ -127,7 +134,7 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 
 <div align="center">
 
-**[SpectreCore (影芯)](https://github.com/23q3/astrbot_plugin_SpectreCore)** | Powered by [AstrBot](https://github.com/AstrBotDevs/AstrBot)
+**[SpectreCore (影芯)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)** | Powered by [AstrBot](https://github.com/AstrBotDevs/AstrBot)
 
 <sub>Made with ❤️ by [23q3](https://github.com/23q3)</sub>
 

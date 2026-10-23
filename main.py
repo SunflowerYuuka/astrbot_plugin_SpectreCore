@@ -7,7 +7,7 @@ import time
     "spectrecore",
     "23q3",
     "使大模型更好的主动回复群聊中的消息，带来生动和沉浸的群聊对话体验",
-    "2.3.1",
+    "2.4.0",
     "https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore"
 )
 class SpectreCore(Star):
@@ -18,8 +18,22 @@ class SpectreCore(Star):
         super().__init__(context)
         self.config = config
         # 初始化各个工具类
+        LLMUtils.init(config)
         HistoryStorage.init(config)
         ImageCaptionUtils.init(context, config)
+        self.outbound_queue = OutboundQueue(config, self.context.send_message, self._save_bot_item)
+        self.reply_orchestrator = ReplyOrchestrator(self.context, config, self.outbound_queue)
+
+    async def initialize(self):
+        await self.outbound_queue.start()
+
+    async def terminate(self):
+        await self.outbound_queue.stop()
+
+    async def _save_bot_item(self, item):
+        await HistoryStorage.save_bot_message_for_session(
+            item.platform_id, item.is_private, item.chat_id, item.self_id, item.chain.chain,
+        )
 
     @event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_group_message(self, event: AstrMessageEvent):
@@ -43,6 +57,10 @@ class SpectreCore(Star):
             
     async def _process_message(self, event: AstrMessageEvent):
         """处理消息的通用逻辑：保存历史记录并尝试回复"""
+        model_mode = ReplyDecision.is_model_mode(self.config)
+        if model_mode:
+            event.set_extra("spectrecore_received_at", time.monotonic())
+            LLMUtils.disable_default_llm(event)
         # 过滤空消息(napcat会发送私聊对方正在输入的状态，导致astrbot识别为空消息)
         message_outline = event.get_message_outline()
         has_forward = any(
@@ -55,6 +73,14 @@ class SpectreCore(Star):
 
         # 保存用户消息到历史记录
         await HistoryStorage.process_and_save_user_message(event)
+
+        if model_mode:
+            gate_started = time.monotonic()
+            gate = await RuleGate.evaluate(event, self.config, self.outbound_queue.depth)
+            logger.debug(f"回复门控 action={gate.action} reason={gate.reason} gate_ms={(time.monotonic() - gate_started) * 1000:.1f}")
+            if gate.action == "candidate":
+                await self.reply_orchestrator.handle(event, gate)
+            return
 
         # 尝试自动回复
         if ReplyDecision.should_reply(event, self.config):
@@ -77,6 +103,8 @@ class SpectreCore(Star):
                 
         except Exception as e:
             logger.error(f"处理bot发送的消息时发生错误: {e}")
+        finally:
+            LLMUtils.clear_in_progress(event)
 
     from astrbot.api.provider import LLMResponse
     @filter.on_llm_response(priority=114514)
@@ -119,6 +147,8 @@ class SpectreCore(Star):
 
         except Exception as e:
             logger.error(f"处理消息发送前事件时发生错误: {e}")
+        finally:
+            LLMUtils.clear_in_progress(event)
 
     @filter.command_group("spectrecore",alias={'sc'})
     def spectrecore(self):
@@ -227,7 +257,7 @@ class SpectreCore(Star):
                 return
                 
             # 重置历史记录
-            success = HistoryStorage.clear_history(platform_name, is_private, chat_id)
+            success = await HistoryStorage.clear_history(platform_name, is_private, chat_id)
             
             if success:
                 yield event.plain_result(f"已成功重置{chat_type}的历史记录喵~")

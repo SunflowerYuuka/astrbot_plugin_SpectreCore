@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.3.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.4.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -64,6 +64,38 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 
 3. 打开插件的配置界面，配置好相关选项，即可开始使用
 
+### 并发回复编排（默认关闭）
+
+在插件配置中开启 `reply_orchestration.enabled` 并将 `decision_mode` 设为 `model`。插件先检查群启用、禁言、关键词、@、冷却等规则，再通过一次模型请求同时判断是否回复并生成内容。`provider_id` 填 AstrBot 已配置的文本模型提供商 ID；留空时使用当前会话的提供商。群白名单、黑名单和私聊开关仍生效。
+
+```json
+{
+  "reply_orchestration": {
+    "enabled": true,
+    "decision_mode": "model",
+    "provider_id": "your-fast-cloud-provider-id",
+    "max_parallel": 12,
+    "timeout_ms": 2000,
+    "outbound_queue": {
+      "enabled": true,
+      "global_interval_ms": 800,
+      "per_group_interval_ms": 6000,
+      "jitter_ms": 300,
+      "max_burst": 3,
+      "ttl_ms": 20000
+    }
+  }
+}
+```
+
+生成请求最多并发 12 个，默认 2 秒超时（包含等待并发名额和构建请求）；超时、模型不可用或 JSON 无效时忽略该条消息。实际速度取决于云端模型、图片转述和网络，2 秒是生成目标，发送时间另外受队列控制。
+
+发送队列也默认关闭；开启后按平台账号共享 token bucket，并限制单群发送间隔。默认每群最多待发 2 条，总计 200 条，过期项丢弃，发送失败最多重试 2 次。一次回复中的多条文本合并为一条消息链发送。队列关闭时生成完成后立即发送；两种模式都会在发送成功后保存机器人历史。重载或退出时未发送项丢弃。
+
+可用 `max_context_messages`（默认 20）、`max_reply_messages`（3）、`min_confidence`（0.55）、`cooldown_ms`（3000）和 `max_replies_per_minute`（6）控制上下文与发言频率。`max_in_progress_ms` 默认 15000，须大于 `timeout_ms`；`fallback_on_error` 当前仅支持 `ignore`。只有提供商明确声明图片能力时才传原始图片，否则保留图片转述文本。
+
+`model` 模式使用临时 JSON 提示词，不修改人格；直接请求模型，不启用工具或流式输出。关闭编排或选择 `legacy` 可继续使用原有 AstrBot LLM 链路和 `<NO_RESPONSE>` 读空气机制。DEBUG 日志记录生成耗时、门控原因和队列等待，便于调参。
+
 ## 📖 文档
 
 - [指令说明](./docs/commands.md) - 详细的指令用法和参数说明
@@ -72,6 +104,12 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.4.0 (2026-10-23)
+
+- 新增默认关闭的并发回复编排，一次模型请求完成 JSON 决策和回复生成，支持独立选择 provider。
+- 新增账号级发送队列，支持间隔、抖动、TTL、优先级、去重和失败重试。
+- 历史读写改为异步线程与每聊天锁；修复 in-progress 生命周期及旧事件误清新请求的问题。
 
 ### v2.3.0 (2026-10-23)
 

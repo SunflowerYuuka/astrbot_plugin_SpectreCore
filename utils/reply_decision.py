@@ -5,6 +5,11 @@ import time
 from .llm_utils import LLMUtils
 
 class ReplyDecision:
+    @staticmethod
+    def is_model_mode(config: AstrBotConfig) -> bool:
+        orch = config.get("reply_orchestration", {}) or {}
+        return bool(orch.get("enabled", False)) and orch.get("decision_mode", "legacy") == "model"
+
     """
     消息回复决策工具类
     用于判断是否要使用大模型回复消息
@@ -186,17 +191,9 @@ class ReplyDecision:
         Yields:
             大模型的回复
         """
-        # 获取必要信息
-        platform_name = event.get_platform_name()
-        is_private = event.is_private_chat()
-        chat_id = event.get_sender_id() if is_private else event.get_group_id()
-
-        # 标记开始处理
-        LLMUtils.set_llm_in_progress(platform_name, is_private, chat_id)
-
+        LLMUtils.mark_in_progress(event)
         try:
-            # 调用大模型并发送回复
             yield await LLMUtils.call_llm(event, config, context)
-        finally:
-            # 标记处理完成
-            LLMUtils.set_llm_in_progress(platform_name, is_private, chat_id, False)
+        except Exception:
+            LLMUtils.clear_in_progress(event)
+            raise

@@ -1,9 +1,12 @@
+import asyncio
 import os
 import jsonpickle
 from typing import List
 from astrbot.api.all import *
+import threading
 import time
 import traceback
+import uuid
 
 class HistoryStorage:
     """
@@ -17,6 +20,8 @@ class HistoryStorage:
     config = None
     # 基础存储路径
     base_storage_path = None
+    _chat_locks: dict[str, asyncio.Lock] = {}
+    _chat_locks_guard = threading.Lock()
     
     @staticmethod
     def init(config: AstrBotConfig):
@@ -36,6 +41,40 @@ class HistoryStorage:
         """确保目录存在，不存在则创建"""
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
+
+    @staticmethod
+    def _get_chat_lock(platform_name: str, is_private_chat: bool, chat_id: str) -> asyncio.Lock:
+        key = f"{platform_name}:{int(is_private_chat)}:{chat_id}"
+        with HistoryStorage._chat_locks_guard:
+            lock = HistoryStorage._chat_locks.get(key)
+            if lock is None:
+                lock = asyncio.Lock()
+                HistoryStorage._chat_locks[key] = lock
+            return lock
+
+    @staticmethod
+    def _read_history(file_path: str) -> list:
+        if not os.path.exists(file_path):
+            return []
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                return jsonpickle.decode(f.read(), keys=True)
+        except Exception as e:
+            logger.error(f"读取消息历史记录失败: {e}")
+            return []
+
+    @staticmethod
+    def _write_history(file_path: str, history: list) -> None:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        tmp_path = f"{file_path}.{uuid.uuid4().hex}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            f.write(jsonpickle.encode(history, unpicklable=True, keys=True))
+        os.replace(tmp_path, file_path)
+
+    @staticmethod
+    async def get_history_async(platform_name: str, is_private_chat: bool, chat_id: str) -> list:
+        file_path = HistoryStorage._get_storage_path(platform_name, is_private_chat, chat_id)
+        return await asyncio.to_thread(HistoryStorage._read_history, file_path)
     
     @staticmethod
     def _get_storage_path(platform_name: str, is_private_chat: bool, chat_id: str) -> str:
@@ -100,38 +139,25 @@ class HistoryStorage:
                 
             # 获取存储路径
             file_path = HistoryStorage._get_storage_path(platform_name, is_private_chat, chat_id)
-            
-            # 读取现有历史记录
-            history = HistoryStorage.get_history(platform_name, is_private_chat, chat_id)
-            if not history:
-                history = []
-                
+
             # 处理图片持久化存储
             await HistoryStorage._process_image_persistence(message)
 
-            # 清理消息对象，并添加到历史记录
+            # 清理消息对象
             sanitized_message = HistoryStorage._sanitize_message(message)
-            history.append(sanitized_message)
 
-            # 限制历史记录数量
-            if len(history) > 200:
+            lock = HistoryStorage._get_chat_lock(platform_name, is_private_chat, chat_id)
+            async with lock:
+                history = await asyncio.to_thread(HistoryStorage._read_history, file_path)
+                history.append(sanitized_message)
                 history = history[-200:]
-
-            # 确保父目录存在
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-
-            # 使用jsonpickle序列化对象
-            json_data = jsonpickle.encode(history, unpicklable=True)
-
-            # 写入文件
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(json_data)
+                await asyncio.to_thread(HistoryStorage._write_history, file_path, history)
 
             # 随机执行清理操作（避免每次都执行，减少性能影响）
             import random
             if random.random() < 0.05:  # 5% 的概率执行清理
                 try:
-                    HistoryStorage._cleanup_old_images()
+                    await asyncio.to_thread(HistoryStorage._cleanup_old_images)
                 except Exception as e:
                     logger.error(f"执行图片清理时发生错误: {e}")
 
@@ -272,6 +298,35 @@ class HistoryStorage:
         except Exception as e:
             logger.error(f"保存机器人消息失败: {e}")
             return False
+
+    @staticmethod
+    async def save_bot_message_for_session(
+        platform_name: str, is_private: bool, chat_id: str, self_id: str, chain: list
+    ) -> bool:
+        config = HistoryStorage.config or {}
+        if is_private:
+            if not config.get("enabled_private", False):
+                return False
+        else:
+            blocked = {str(g).strip() for g in config.get("blocked_groups", []) if str(g).strip()}
+            enabled = {str(g).strip() for g in config.get("enabled_groups", []) if str(g).strip()}
+            if str(chat_id).strip() in blocked:
+                return False
+            if not config.get("enable_all_groups", False) and str(chat_id).strip() not in enabled:
+                return False
+
+        msg = AstrBotMessage()
+        msg.message = chain
+        msg.timestamp = int(time.time())
+        msg.type = MessageType.FRIEND_MESSAGE if is_private else MessageType.GROUP_MESSAGE
+        if not is_private:
+            msg.group_id = chat_id
+        msg.sender = MessageMember(user_id=self_id, nickname="AstrBot")
+        msg.message_str = "".join(getattr(c, "text", "") for c in chain if isinstance(c, Plain))
+        msg.self_id = self_id
+        msg.session_id = ""
+        msg.message_id = f"bot_{uuid.uuid4().hex}"
+        return await HistoryStorage.save_message(msg, platform_name, chat_id_override=chat_id)
     
     @staticmethod
     def get_history(platform_name: str, is_private_chat: bool, chat_id: str) -> List[AstrBotMessage]:
@@ -286,24 +341,11 @@ class HistoryStorage:
         Returns:
             历史消息列表
         """
-        try:
-            file_path = HistoryStorage._get_storage_path(platform_name, is_private_chat, chat_id)
-            
-            if not os.path.exists(file_path):
-                return []
-            
-            with open(file_path, "r", encoding="utf-8") as f:
-                # 使用jsonpickle反序列化JSON数据
-                history = jsonpickle.decode(f.read())
-                
-            return history
-        except Exception as e:
-            logger.error(f"读取消息历史记录失败: {e}")
-            logger.debug(traceback.format_exc())
-            return []
+        file_path = HistoryStorage._get_storage_path(platform_name, is_private_chat, chat_id)
+        return HistoryStorage._read_history(file_path)
     
     @staticmethod
-    def clear_history(platform_name: str, is_private_chat: bool, chat_id: str) -> bool:
+    async def clear_history(platform_name: str, is_private_chat: bool, chat_id: str) -> bool:
         """
         清空历史消息记录
         
@@ -318,8 +360,11 @@ class HistoryStorage:
         try:
             file_path = HistoryStorage._get_storage_path(platform_name, is_private_chat, chat_id)
             
-            if os.path.exists(file_path):
-                os.remove(file_path)
+            async with HistoryStorage._get_chat_lock(platform_name, is_private_chat, chat_id):
+                try:
+                    await asyncio.to_thread(os.remove, file_path)
+                except FileNotFoundError:
+                    pass
                 
             return True
         except Exception as e:

@@ -12,6 +12,9 @@ from .persona_utils import PersonaUtils
 from .text_filter import TextFilter
 from .reply_decision import ReplyDecision
 from .quote_utils import QuoteUtils
+from .rule_gate import GateResult, RuleGate
+from .reply_orchestrator import ReplyOrchestrator
+from .outbound_queue import OutboundItem, OutboundQueue
 
 __all__ = [
     "HistoryStorage",
@@ -23,5 +26,10 @@ __all__ = [
     "PersonaUtils",
     "TextFilter",
     "ReplyDecision",
-    "QuoteUtils"
-] 
+    "QuoteUtils",
+    "GateResult",
+    "RuleGate",
+    "ReplyOrchestrator",
+    "OutboundItem",
+    "OutboundQueue",
+]

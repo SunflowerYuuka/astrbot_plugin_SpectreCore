@@ -187,5 +187,147 @@
                 "default": 5
             }
         }
+    },
+    "reply_orchestration": {
+        "description": "并发回复编排",
+        "type": "object",
+        "hint": "默认关闭。开启后先做规则门控，再用指定 provider 进行一次 JSON 决策/生成，最后按账号节奏发送。",
+        "items": {
+            "enabled": {
+                "description": "启用并发回复编排",
+                "type": "bool",
+                "hint": "关闭时完全走 legacy 行为",
+                "default": false
+            },
+            "decision_mode": {
+                "description": "决策模式",
+                "type": "string",
+                "hint": "legacy 保持 read_air；model 使用 JSON 决策协议",
+                "default": "legacy",
+                "options": ["legacy", "model"]
+            },
+            "provider_id": {
+                "description": "决策模型提供商 ID",
+                "type": "string",
+                "hint": "留空使用当前会话 provider；非空时必须存在且支持文本生成",
+                "default": ""
+            },
+            "max_parallel": {
+                "description": "全局最大并发生成数",
+                "type": "int",
+                "hint": "10+ 群建议 12-16，并低于 provider 的并发限制",
+                "default": 12
+            },
+            "timeout_ms": {
+                "description": "单次生成超时（毫秒）",
+                "type": "int",
+                "hint": "覆盖等待并发信号量和 provider 调用；超时按 ignore 处理",
+                "default": 2000
+            },
+            "max_in_progress_ms": {
+                "description": "in-progress 兜底超时（毫秒）",
+                "type": "int",
+                "hint": "必须大于 timeout_ms，防止异常路径永久锁死",
+                "default": 15000
+            },
+            "max_context_messages": {
+                "description": "决策请求最多携带的历史消息数",
+                "type": "int",
+                "hint": "越大越慢，建议不超过 20",
+                "default": 20
+            },
+            "max_reply_messages": {
+                "description": "一次回复最多包含几条消息",
+                "type": "int",
+                "hint": "多条会合并成一个 MessageChain 发送",
+                "default": 3
+            },
+            "min_confidence": {
+                "description": "最低回复置信度",
+                "type": "float",
+                "hint": "低于该值按 ignore 处理，范围 0-1",
+                "default": 0.55
+            },
+            "cooldown_ms": {
+                "description": "同一聊天回复冷却（毫秒）",
+                "type": "int",
+                "hint": "硬限制，模型无法绕过",
+                "default": 3000
+            },
+            "max_replies_per_minute": {
+                "description": "同一聊天每分钟最多回复次数",
+                "type": "int",
+                "hint": "硬限制，模型无法绕过",
+                "default": 6
+            },
+            "fallback_on_error": {
+                "description": "失败降级策略",
+                "type": "string",
+                "hint": "v1 仅支持 ignore",
+                "default": "ignore",
+                "options": ["ignore"]
+            },
+            "outbound_queue": {
+                "description": "账号级发送队列",
+                "type": "object",
+                "hint": "关闭时生成完成后立即发送；开启时按全局/群级间隔发送",
+                "items": {
+                    "enabled": {
+                        "description": "启用发送队列",
+                        "type": "bool",
+                        "hint": "关闭时仍通过同一个 sender 立即发送并保存历史",
+                        "default": false
+                    },
+                    "global_interval_ms": {
+                        "description": "账号级全局发送间隔（毫秒）",
+                        "type": "int",
+                        "hint": "不同群共享同一账号时也不会同时爆发",
+                        "default": 800
+                    },
+                    "per_group_interval_ms": {
+                        "description": "单群发送间隔（毫秒）",
+                        "type": "int",
+                        "hint": "同一群连续回复的最小间隔",
+                        "default": 6000
+                    },
+                    "jitter_ms": {
+                        "description": "发送随机抖动（毫秒）",
+                        "type": "int",
+                        "hint": "在入队时加入 0 到该值的随机等待",
+                        "default": 300
+                    },
+                    "max_burst": {
+                        "description": "账号级最大突发数",
+                        "type": "int",
+                        "hint": "token bucket 容量",
+                        "default": 3
+                    },
+                    "ttl_ms": {
+                        "description": "队列项有效期（毫秒）",
+                        "type": "int",
+                        "hint": "过期直接丢弃，避免发送过时回复",
+                        "default": 20000
+                    },
+                    "max_pending_per_group": {
+                        "description": "单群最大待发送数",
+                        "type": "int",
+                        "hint": "超过后拒绝新的低优先级项",
+                        "default": 2
+                    },
+                    "max_queue_size": {
+                        "description": "队列总长度上限",
+                        "type": "int",
+                        "hint": "高优先级项可以替换最旧的低优先级项",
+                        "default": 200
+                    },
+                    "send_retries": {
+                        "description": "发送失败重试次数",
+                        "type": "int",
+                        "hint": "使用指数退避；最终失败丢弃并记录",
+                        "default": 2
+                    }
+                }
+            }
+        }
     }
 }

@@ -58,13 +58,18 @@ class ConfigSchemaTest(unittest.TestCase):
         for field, default in (("duration_seconds", 300), ("max_messages", 5), ("idle_timeout_seconds", 120)):
             self.assertEqual(wake["private"]["items"][field]["default"], default)
             self.assertEqual(wake["admin"]["items"][field]["default"], 0)
-        self.assertEqual(wake["groups"]["type"], "dict")
-        self.assertEqual(wake["groups"]["default"], {})
+        self.assertEqual(wake["groups"]["type"], "template_list")
+        self.assertEqual(wake["groups"]["default"], [])
+        group_items = wake["groups"]["templates"]["group"]["items"]
+        self.assertEqual(group_items["group_id"]["type"], "string")
+        for field in ("duration_seconds", "max_messages", "idle_timeout_seconds"):
+            self.assertEqual(group_items[field]["type"], "string")
+            self.assertEqual(group_items[field]["default"], "")
 
     def test_schema_is_loadable_by_astrbot_config_parser(self):
         schema = json.loads(SCHEMA_PATH.read_text("utf-8"))
         defaults = astrbot_schema_to_default_config(schema)
         wake = defaults["reply_orchestration"]["wake"]
-        self.assertEqual(wake["groups"], {})
+        self.assertEqual(wake["groups"], [])
         self.assertEqual(wake["private"]["max_messages"], 5)
         self.assertEqual(wake["admin"]["duration_seconds"], 0)

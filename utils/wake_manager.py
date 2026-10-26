@@ -29,22 +29,49 @@ class WakeManager:
         return f"{event.get_platform_name()}:{event.get_self_id()}:{chat_type}:{chat_id}"
 
     @classmethod
+    def _group_overrides(cls, wake) -> dict:
+        groups = wake.get("groups", {}) or {}
+        if isinstance(groups, dict):
+            return groups
+        overrides = {}
+        if isinstance(groups, list):
+            for entry in groups:
+                if not isinstance(entry, dict):
+                    continue
+                group_id = str(entry.get("group_id", "") or "").strip()
+                if group_id:
+                    overrides[group_id] = entry
+        return overrides
+
+    @classmethod
     def _scope_config(cls, event, config):
         wake = (config.get("reply_orchestration", {}) or {}).get("wake", {}) or {}
         if getattr(event, "is_admin", lambda: False)():
             return wake.get("admin", {}) or {}
         if event.is_private_chat():
             return wake.get("private", {}) or {}
-        return (wake.get("groups", {}) or {}).get(str(event.get_group_id()), {}) or {}
+        return cls._group_overrides(wake).get(str(event.get_group_id()), {}) or {}
+
+    @classmethod
+    def _override_int(cls, entry, key, fallback) -> int:
+        raw = entry.get(key)
+        if raw is None:
+            return fallback
+        if isinstance(raw, str) and not raw.strip():
+            return fallback
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return fallback
 
     @classmethod
     def resolve_limits(cls, event, config) -> WakeLimits:
         wake = (config.get("reply_orchestration", {}) or {}).get("wake", {}) or {}
         override = cls._scope_config(event, config)
         return WakeLimits(
-            int(override.get("duration_seconds", wake.get("duration_seconds", 300))),
-            int(override.get("max_messages", wake.get("max_messages", 5))),
-            int(override.get("idle_timeout_seconds", wake.get("idle_timeout_seconds", 120))),
+            cls._override_int(override, "duration_seconds", int(wake.get("duration_seconds", 300))),
+            cls._override_int(override, "max_messages", int(wake.get("max_messages", 5))),
+            cls._override_int(override, "idle_timeout_seconds", int(wake.get("idle_timeout_seconds", 120))),
         )
 
     @classmethod

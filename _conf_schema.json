@@ -358,10 +358,41 @@
                         }
                     },
                     "groups": {
-                        "description": "群聊唤醒会话覆盖值，未配置字段继承全局值",
-                        "type": "dict",
-                        "hint": "键为群号，值为 JSON 对象，可包含 duration_seconds、max_messages、idle_timeout_seconds；未填写的字段继承全局值，显式 0 表示不限。",
-                        "default": {}
+                        "description": "群聊唤醒会话覆盖值",
+                        "type": "template_list",
+                        "hint": "按群号添加覆盖条目；留空继承全局值，显式 0 表示不限。",
+                        "default": [],
+                        "templates": {
+                            "group": {
+                                "name": "群聊覆盖",
+                                "description": "为指定群聊设置唤醒限制",
+                                "items": {
+                                    "group_id": {
+                                        "description": "群号",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "duration_seconds": {
+                                        "description": "唤醒会话持续时间（秒）",
+                                        "hint": "留空继承全局值，0 表示不限",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "max_messages": {
+                                        "description": "唤醒会话最多续接消息数",
+                                        "hint": "留空继承全局值，0 表示不限",
+                                        "type": "string",
+                                        "default": ""
+                                    },
+                                    "idle_timeout_seconds": {
+                                        "description": "唤醒会话空闲超时（秒）",
+                                        "hint": "留空继承全局值，0 表示不限",
+                                        "type": "string",
+                                        "default": ""
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },

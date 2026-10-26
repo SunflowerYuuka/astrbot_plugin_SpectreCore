@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.6.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.6.2-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -144,13 +144,15 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
       "duration_seconds": 300,
       "max_messages": 5,
       "idle_timeout_seconds": 120,
-      "groups": {
-        "123456": {
-          "duration_seconds": 600,
-          "max_messages": 8,
-          "idle_timeout_seconds": 180
+      "groups": [
+        {
+          "__template_key": "group",
+          "group_id": "123456",
+          "duration_seconds": "600",
+          "max_messages": "8",
+          "idle_timeout_seconds": "180"
         }
-      },
+      ],
       "private": {
         "duration_seconds": 300,
         "max_messages": 5,
@@ -166,7 +168,7 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 }
 ```
 
-`duration_seconds`、`max_messages` 和 `idle_timeout_seconds` 分别限制会话总时长、期间可消费的消息数和无活动时长；任一非零限制到达即退出，设为 `0` 表示该项不限。群聊按群 ID 覆盖全局值，私聊使用 `private`，管理员使用 `admin` 且优先于群聊／私聊配置。未填写的作用域字段沿用全局值，显式 `0` 则保持不限。达到任一限制后会话结束；唤醒不会绕过门控或无条件续聊。
+`duration_seconds`、`max_messages` 和 `idle_timeout_seconds` 分别限制会话总时长、期间可消费的消息数和无活动时长；任一非零限制到达即退出，设为 `0` 表示该项不限。群聊覆盖在 WebUI 中通过“添加条目”填写，不需要手写 JSON：每条填写群号，三个限制留空即继承全局值。私聊使用 `private`，管理员使用 `admin` 且优先于群聊／私聊配置。达到任一限制后会话结束；唤醒不会绕过门控或无条件续聊。
 
 ## 📖 文档
 
@@ -176,6 +178,11 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.6.2 (2026-10-26)
+
+- 群聊唤醒覆盖改为“添加条目”编辑，不再需要手写 JSON。
+- 每条填写群号及三个限制；留空继承全局值，`0` 表示不限。
 
 ### v2.6.1 (2026-10-26)
 

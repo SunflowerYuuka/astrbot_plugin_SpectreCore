@@ -2,6 +2,11 @@
 
 SpectreCore 的主要版本更新记录。历史版本的独立文件仍保存在 `changelogs/` 目录。
 
+## v2.6.2
+
+- **群聊覆盖更易配置** - `reply_orchestration.wake.groups` 改为 `template_list`，WebUI 中通过“添加条目”填写群号和限制，不再需要手写 JSON。
+- **留空继承** - 群聊条目中的限制留空时继承全局值，显式 `0` 表示不限；旧的 `dict` 配置仍然兼容。
+
 ## v2.6.1
 
 - **修复安装失败** - 修复 AstrBot 4.29.1 加载 v2.6.0 时报 `string indices must be integers, not 'str'` 的问题；`reply_orchestration.wake.groups` 改用 AstrBot 支持的 `dict` 类型。

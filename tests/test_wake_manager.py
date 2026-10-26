@@ -31,6 +31,39 @@ class WakeManagerTest(unittest.TestCase):
         self.assertEqual(limits.max_messages, 4)
         self.assertEqual(limits.idle_timeout_seconds, 120)
 
+    def test_group_template_list_override_inherits_missing_fields(self):
+        self.config["reply_orchestration"]["wake"]["groups"] = [
+            {"__template_key": "group", "group_id": "123", "duration_seconds": "600", "max_messages": "4"},
+            {"__template_key": "group", "group_id": "other", "duration_seconds": 10},
+            {"__template_key": "group", "group_id": "", "duration_seconds": 1},
+            "invalid",
+        ]
+        limits = self.manager.resolve_limits(self.event, self.config)
+        self.assertEqual(limits.duration_seconds, 600)
+        self.assertEqual(limits.max_messages, 4)
+        self.assertEqual(limits.idle_timeout_seconds, 120)
+
+    def test_group_template_list_treats_blank_and_invalid_as_inherit(self):
+        self.config["reply_orchestration"]["wake"]["groups"] = [
+            {
+                "__template_key": "group", "group_id": "123",
+                "duration_seconds": " ", "max_messages": "abc", "idle_timeout_seconds": "",
+            },
+        ]
+        limits = self.manager.resolve_limits(self.event, self.config)
+        self.assertEqual(limits.duration_seconds, 300)
+        self.assertEqual(limits.max_messages, 2)
+        self.assertEqual(limits.idle_timeout_seconds, 120)
+
+    def test_group_template_list_keeps_explicit_zero(self):
+        self.config["reply_orchestration"]["wake"]["groups"] = [
+            {"__template_key": "group", "group_id": "123", "duration_seconds": "0"},
+        ]
+        limits = self.manager.resolve_limits(self.event, self.config)
+        self.assertEqual(limits.duration_seconds, 0)
+        self.assertEqual(limits.max_messages, 2)
+        self.assertEqual(limits.idle_timeout_seconds, 120)
+
     def test_private_and_admin_configs_have_priority(self):
         self.event.is_private_chat = lambda: True
         limits = self.manager.resolve_limits(self.event, self.config)

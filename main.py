@@ -7,7 +7,7 @@ import time
     "spectrecore",
     "23q3",
     "使大模型更好的主动回复群聊中的消息，带来生动和沉浸的群聊对话体验",
-    "2.6.2",
+    "2.6.3",
     "https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore"
 )
 class SpectreCore(Star):
@@ -17,6 +17,7 @@ class SpectreCore(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
+        WakeManager.normalize_config(config)
         # 初始化各个工具类
         LLMUtils.init(config)
         HistoryStorage.init(config)

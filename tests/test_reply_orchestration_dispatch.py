@@ -161,6 +161,20 @@ class DispatchTest(unittest.IsolatedAsyncioTestCase):
         self.assertIs(queue_type.call_args.kwargs["delivery_callback"].__func__,
                       plugin._on_outbound_delivered.__func__)
 
+    async def test_constructor_migrates_legacy_wake_group_dict_for_config_ui(self):
+        context = types.SimpleNamespace(send_message=AsyncMock())
+        config = {"reply_orchestration": {"wake": {"groups": {
+            "123": {"duration_seconds": 600},
+        }}}}
+        with patch.object(self.mod.LLMUtils, "init"), \
+             patch.object(self.mod.HistoryStorage, "init"), \
+             patch.object(self.mod.ImageCaptionUtils, "init"), \
+             patch.object(self.mod, "OutboundQueue"):
+            self.mod.SpectreCore(context, config)
+        self.assertEqual(config["reply_orchestration"]["wake"]["groups"], [
+            {"__template_key": "group", "group_id": "123", "duration_seconds": "600"},
+        ])
+
     async def test_active_wake_claims_and_routes_before_normal_trigger_logic(self):
         self.plugin.config = {
             "enable_all_groups": True,

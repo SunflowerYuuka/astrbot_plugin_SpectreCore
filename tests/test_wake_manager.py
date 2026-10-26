@@ -31,6 +31,37 @@ class WakeManagerTest(unittest.TestCase):
         self.assertEqual(limits.max_messages, 4)
         self.assertEqual(limits.idle_timeout_seconds, 120)
 
+    def test_normalize_config_converts_legacy_dict_to_template_list(self):
+        self.config["reply_orchestration"]["wake"]["groups"] = {
+            "123": {"duration_seconds": 600, "max_messages": 4},
+            "456": {"idle_timeout_seconds": 0},
+        }
+        self.assertTrue(self.manager.normalize_config(self.config))
+        self.assertEqual(self.config["reply_orchestration"]["wake"]["groups"], [
+            {
+                "__template_key": "group", "group_id": "123",
+                "duration_seconds": "600", "max_messages": "4",
+            },
+            {
+                "__template_key": "group", "group_id": "456",
+                "idle_timeout_seconds": "0",
+            },
+        ])
+
+    def test_normalize_config_converts_empty_dict_to_list(self):
+        self.config["reply_orchestration"]["wake"]["groups"] = {}
+        self.assertTrue(self.manager.normalize_config(self.config))
+        self.assertEqual(self.config["reply_orchestration"]["wake"]["groups"], [])
+
+    def test_normalize_config_leaves_template_list_untouched(self):
+        groups = [{"__template_key": "group", "group_id": "123", "duration_seconds": "600"}]
+        self.config["reply_orchestration"]["wake"]["groups"] = groups
+        self.assertFalse(self.manager.normalize_config(self.config))
+        self.assertIs(self.config["reply_orchestration"]["wake"]["groups"], groups)
+
+    def test_normalize_config_ignores_missing_wake(self):
+        self.assertFalse(self.manager.normalize_config({"reply_orchestration": {}}))
+
     def test_group_template_list_override_inherits_missing_fields(self):
         self.config["reply_orchestration"]["wake"]["groups"] = [
             {"__template_key": "group", "group_id": "123", "duration_seconds": "600", "max_messages": "4"},

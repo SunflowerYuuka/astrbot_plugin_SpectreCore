@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.6.2-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.6.3-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -178,6 +178,11 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.6.3 (2026-10-26)
+
+- 修复从 v2.6.1 升级后，群聊覆盖仍保存为对象导致“添加条目”点击无反应的问题。
+- 插件启动时会自动把旧的群聊覆盖对象转换为列表条目，无需手动改配置。
 
 ### v2.6.2 (2026-10-26)
 

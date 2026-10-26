@@ -29,6 +29,34 @@ class WakeManager:
         return f"{event.get_platform_name()}:{event.get_self_id()}:{chat_type}:{chat_id}"
 
     @classmethod
+    def normalize_config(cls, config) -> bool:
+        orchestration = config.get("reply_orchestration", {}) or {}
+        if not isinstance(orchestration, dict):
+            return False
+        wake = orchestration.get("wake")
+        if not isinstance(wake, dict):
+            return False
+        groups = wake.get("groups")
+        if isinstance(groups, list):
+            return False
+
+        entries = []
+        if isinstance(groups, dict):
+            for group_id, override in groups.items():
+                group_id = str(group_id).strip()
+                if not group_id:
+                    continue
+                entry = {"__template_key": "group", "group_id": group_id}
+                if isinstance(override, dict):
+                    for key in ("duration_seconds", "max_messages", "idle_timeout_seconds"):
+                        value = override.get(key)
+                        if value is not None:
+                            entry[key] = str(value)
+                entries.append(entry)
+        wake["groups"] = entries
+        return True
+
+    @classmethod
     def _group_overrides(cls, wake) -> dict:
         groups = wake.get("groups", {}) or {}
         if isinstance(groups, dict):

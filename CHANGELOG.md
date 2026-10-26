@@ -2,6 +2,11 @@
 
 SpectreCore 的主要版本更新记录。历史版本的独立文件仍保存在 `changelogs/` 目录。
 
+## v2.6.3
+
+- **修复添加条目无反应** - 从 v2.6.1 升级时旧配置中的 `wake.groups` 仍为对象，列表编辑器无法迭代对象，点击“添加条目”没有效果；插件启动时会自动转换为列表条目。
+- 转换后每个群号生成一条记录，原有 `duration_seconds`、`max_messages`、`idle_timeout_seconds` 值保留。
+
 ## v2.6.2
 
 - **群聊覆盖更易配置** - `reply_orchestration.wake.groups` 改为 `template_list`，WebUI 中通过“添加条目”填写群号和限制，不再需要手写 JSON。

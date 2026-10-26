@@ -291,6 +291,95 @@
                 "default": "ignore",
                 "options": ["ignore"]
             },
+            "wake": {
+                "description": "唤醒会话续接",
+                "type": "object",
+                "items": {
+                    "enabled": {
+                        "description": "启用唤醒会话续接",
+                        "type": "bool",
+                        "default": false
+                    },
+                    "duration_seconds": {
+                        "description": "唤醒会话持续时间（秒）",
+                        "type": "int",
+                        "default": 300
+                    },
+                    "max_messages": {
+                        "description": "唤醒会话最多续接消息数",
+                        "type": "int",
+                        "default": 5
+                    },
+                    "idle_timeout_seconds": {
+                        "description": "唤醒会话空闲超时（秒）",
+                        "type": "int",
+                        "default": 120
+                    },
+                    "private": {
+                        "description": "私聊唤醒会话覆盖值",
+                        "type": "object",
+                        "items": {
+                            "duration_seconds": {
+                                "description": "唤醒会话持续时间（秒）",
+                                "type": "int",
+                                "default": 300
+                            },
+                            "max_messages": {
+                                "description": "唤醒会话最多续接消息数",
+                                "type": "int",
+                                "default": 5
+                            },
+                            "idle_timeout_seconds": {
+                                "description": "唤醒会话空闲超时（秒）",
+                                "type": "int",
+                                "default": 120
+                            }
+                        }
+                    },
+                    "admin": {
+                        "description": "管理员唤醒会话覆盖值",
+                        "type": "object",
+                        "items": {
+                            "duration_seconds": {
+                                "description": "唤醒会话持续时间（秒）",
+                                "type": "int",
+                                "default": 0
+                            },
+                            "max_messages": {
+                                "description": "唤醒会话最多续接消息数",
+                                "type": "int",
+                                "default": 0
+                            },
+                            "idle_timeout_seconds": {
+                                "description": "唤醒会话空闲超时（秒）",
+                                "type": "int",
+                                "default": 0
+                            }
+                        }
+                    },
+                    "groups": {
+                        "description": "群聊唤醒会话覆盖值，未配置字段继承全局值",
+                        "type": "object",
+                        "items": {
+                            "type": "object",
+                            "items": {
+                                "duration_seconds": {
+                                    "description": "唤醒会话持续时间（秒）",
+                                    "type": "int"
+                                },
+                                "max_messages": {
+                                    "description": "唤醒会话最多续接消息数",
+                                    "type": "int"
+                                },
+                                "idle_timeout_seconds": {
+                                    "description": "唤醒会话空闲超时（秒）",
+                                    "type": "int"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "outbound_queue": {
                 "description": "账号级发送队列",
                 "type": "object",

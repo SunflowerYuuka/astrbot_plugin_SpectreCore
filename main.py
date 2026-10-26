@@ -7,7 +7,7 @@ import time
     "spectrecore",
     "23q3",
     "使大模型更好的主动回复群聊中的消息，带来生动和沉浸的群聊对话体验",
-    "2.5.1",
+    "2.6.0",
     "https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore"
 )
 class SpectreCore(Star):
@@ -21,7 +21,10 @@ class SpectreCore(Star):
         LLMUtils.init(config)
         HistoryStorage.init(config)
         ImageCaptionUtils.init(context, config)
-        self.outbound_queue = OutboundQueue(config, self.context.send_message, self._save_bot_item)
+        self.outbound_queue = OutboundQueue(
+            config, self.context.send_message, self._save_bot_item,
+            delivery_callback=self._on_outbound_delivered,
+        )
         self.reply_orchestrator = ReplyOrchestrator(self.context, config, self.outbound_queue)
 
     async def initialize(self):
@@ -31,8 +34,19 @@ class SpectreCore(Star):
         await self.outbound_queue.stop()
 
     async def _save_bot_item(self, item):
-        await HistoryStorage.save_bot_message_for_session(
+        return await HistoryStorage.save_bot_message_for_session(
             item.platform_id, item.is_private, item.chat_id, item.self_id, item.chain.chain,
+        )
+
+    async def _on_outbound_delivered(self, item):
+        wake_session_id = getattr(item, "wake_session_id", None)
+        if not item.wake_key or item.wake_limits is None or not wake_session_id:
+            return
+        WakeManager.record_delivery(
+            item.wake_key,
+            item.wake_limits,
+            wake_session_id,
+            starts_session=getattr(item, "wake_starts_session", False),
         )
 
     @event_message_type(EventMessageType.GROUP_MESSAGE)
@@ -58,9 +72,6 @@ class SpectreCore(Star):
     async def _process_message(self, event: AstrMessageEvent):
         """处理消息的通用逻辑：保存历史记录并尝试回复"""
         model_mode = ReplyDecision.is_model_mode(self.config)
-        if model_mode:
-            event.set_extra("spectrecore_received_at", time.monotonic())
-            LLMUtils.disable_default_llm(event)
         # 过滤空消息(napcat会发送私聊对方正在输入的状态，导致astrbot识别为空消息)
         message_outline = event.get_message_outline()
         has_forward = any(
@@ -75,15 +86,40 @@ class SpectreCore(Star):
         await HistoryStorage.process_and_save_user_message(event)
 
         if model_mode:
+            event.set_extra("spectrecore_received_at", time.monotonic())
+            LLMUtils.disable_default_llm(event)
+
+        if WakeManager.enabled(self.config) and WakeManager.is_active(event):
+            wake_gate = RuleGate.check_wake_message(
+                event, self.config, self.outbound_queue.depth
+            )
+            if wake_gate.action == "skip":
+                return
+            if WakeManager.claim_message(event, self.config):
+                await self.reply_orchestrator.handle(
+                    event, wake_gate, wake_context=True,
+                )
+                return
+
+        if model_mode:
             gate_started = time.monotonic()
             gate = await RuleGate.evaluate(event, self.config, self.outbound_queue.depth)
             logger.debug(f"回复门控 action={gate.action} reason={gate.reason} gate_ms={(time.monotonic() - gate_started) * 1000:.1f}")
             if gate.action == "candidate":
-                await self.reply_orchestrator.handle(event, gate)
+                await self.reply_orchestrator.handle(
+                    event, gate,
+                    wake_context=WakeManager.enabled(self.config) or WakeManager.is_active(event),
+                )
             return
 
         # 尝试自动回复
         if ReplyDecision.should_reply(event, self.config):
+            if ReplyDecision.is_wake_enabled(self.config):
+                await self.reply_orchestrator.handle(
+                    event, GateResult("candidate", "legacy_trigger", priority=1, trigger="legacy"),
+                    wake_context=True,
+                )
+                return
             async for result in ReplyDecision.process_and_reply(event, self.config, self.context):
                 yield result
 

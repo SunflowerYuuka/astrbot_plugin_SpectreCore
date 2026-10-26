@@ -11,6 +11,11 @@ class ReplyDecision:
         orch = config.get("reply_orchestration", {}) or {}
         return bool(orch.get("enabled", False)) and orch.get("decision_mode", "legacy") == "model"
 
+    @staticmethod
+    def is_wake_enabled(config: AstrBotConfig) -> bool:
+        wake = (config.get("reply_orchestration", {}) or {}).get("wake", {}) or {}
+        return bool(wake.get("enabled", False))
+
     """
     消息回复决策工具类
     用于判断是否要使用大模型回复消息

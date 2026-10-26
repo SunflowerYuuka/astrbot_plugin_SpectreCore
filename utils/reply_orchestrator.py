@@ -5,13 +5,14 @@ import uuid
 
 from astrbot.api.all import MessageChain, logger
 
-from .decision_protocol import parse_decision
+from .decision_protocol import build_wake_instruction, parse_decision
 from .llm_utils import LLMUtils
 from .outbound_queue import OutboundItem
 from .provider_utils import ProviderUnavailable, provider_supports_images, resolve_provider
 from .quote_utils import QuoteUtils
 from .rule_gate import RuleGate
 from .text_filter import TextFilter
+from .wake_manager import WakeManager
 
 
 class ReplyOrchestrator:
@@ -30,7 +31,7 @@ class ReplyOrchestrator:
         orch = config.get("reply_orchestration", {}) or {}
         return await resolve_provider(self.context, event.unified_msg_origin, orch.get("provider_id", ""))
 
-    async def _generate(self, event):
+    async def _generate(self, event, wake_context=False):
         async with self._semaphore:
             provider = self.provider_resolver(event, self.config)
             if inspect.isawaitable(provider):
@@ -40,6 +41,8 @@ class ReplyOrchestrator:
                 event, self.config, self.context,
                 decision_mode=True, include_images=supports_images,
             )
+            if wake_context:
+                request.system_prompt += build_wake_instruction()
             return await provider.text_chat(
                 prompt=request.prompt,
                 session_id=request.session_id,
@@ -49,7 +52,7 @@ class ReplyOrchestrator:
                 func_tool=None,
             )
 
-    async def handle(self, event, gate_result):
+    async def handle(self, event, gate_result, wake_context=False):
         LLMUtils.disable_default_llm(event)
         if RuleGate.reply_limit_reason(event, self.config):
             return
@@ -58,8 +61,23 @@ class ReplyOrchestrator:
         started = time.monotonic()
         reservation = None
         accepted = False
+        claimed_wake_message = getattr(gate_result, "reason", None) == "wake"
+        wake_key = None
+        wake_limits = None
+        wake_session_id = None
+        wake_starts_session = False
         try:
-            response = await asyncio.wait_for(self._generate(event), self.timeout)
+            if wake_context:
+                active_session = WakeManager.get_active_session(event)
+                if active_session is not None:
+                    wake_key = WakeManager.key_for_event(event)
+                    wake_session_id, wake_limits = active_session
+                elif not claimed_wake_message:
+                    wake_key = WakeManager.key_for_event(event)
+                    wake_limits = WakeManager.resolve_limits(event, self.config)
+                    wake_session_id = uuid.uuid4().hex
+                    wake_starts_session = True
+            response = await asyncio.wait_for(self._generate(event, wake_context), self.timeout)
             elapsed = (time.monotonic() - (event.get_extra("spectrecore_received_at") or started)) * 1000
             logger.debug(f"回复生成 generation_ms={elapsed:.1f} queue_depth={getattr(self.queue, 'depth', 0)}")
             decision = parse_decision(
@@ -94,6 +112,10 @@ class ReplyOrchestrator:
                 is_private=event.is_private_chat(), chain=MessageChain(chain=list(result.chain)),
                 created_at=now, expires_at=now + self.queue.ttl_seconds,
                 priority=gate_result.priority,
+                wake_key=wake_key,
+                wake_limits=wake_limits,
+                wake_session_id=wake_session_id,
+                wake_starts_session=wake_starts_session,
             )
             reservation = RuleGate.record_reply(event)
             LLMUtils.clear_in_progress(event)

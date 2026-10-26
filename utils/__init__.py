@@ -15,6 +15,7 @@ from .quote_utils import QuoteUtils
 from .rule_gate import GateResult, RuleGate
 from .reply_orchestrator import ReplyOrchestrator
 from .outbound_queue import OutboundItem, OutboundQueue
+from .wake_manager import WakeLimits, WakeManager
 
 __all__ = [
     "HistoryStorage",
@@ -32,4 +33,6 @@ __all__ = [
     "ReplyOrchestrator",
     "OutboundItem",
     "OutboundQueue",
+    "WakeLimits",
+    "WakeManager",
 ]

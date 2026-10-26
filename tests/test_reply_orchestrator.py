@@ -34,6 +34,7 @@ class OrchestratorTest(unittest.IsolatedAsyncioTestCase):
         self.llm = load_utils_module("llm_utils").LLMUtils
         self.llm.init({})
         self.mod.RuleGate.reset_state()
+        load_utils_module("wake_manager").WakeManager.reset()
         self.items = []
         async def enqueue(item):
             self.items.append(item)
@@ -54,6 +55,12 @@ class OrchestratorTest(unittest.IsolatedAsyncioTestCase):
         return self.mod.ReplyOrchestrator(None, {"reply_orchestration": cfg}, self.queue,
                                           provider_resolver=lambda *args: self.provider)
 
+    def test_wake_instruction_requires_topic_awareness(self):
+        protocol = load_utils_module("decision_protocol")
+        text = protocol.build_wake_instruction()
+        self.assertIn("不要因为刚才回复过就继续回复", text)
+        self.assertIn("ignore", text)
+
     async def test_reply_combines_messages_and_clears_in_progress(self):
         event = FakeEvent()
         await self.orchestrator().handle(event, types.SimpleNamespace(priority=1))
@@ -62,6 +69,38 @@ class OrchestratorTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(event.call_llm)
         self.assertFalse(self.llm.is_llm_in_progress("p", False, "1"))
         self.assertEqual(self.provider.text_chat.call_args.kwargs["image_urls"], [])
+
+    async def test_wake_context_adds_instruction_and_carries_limits(self):
+        wake = load_utils_module("wake_manager")
+        event = FakeEvent()
+        key = wake.WakeManager.key_for_event(event)
+        limits = wake.WakeLimits(900, 4, 250)
+        wake.WakeManager.activate(key, limits)
+        session_id = wake.WakeManager.get_active_session(event)[0]
+        orch = self.orchestrator()
+        await orch.handle(event, types.SimpleNamespace(priority=1), wake_context=True)
+        kwargs = self.provider.text_chat.call_args.kwargs
+        self.assertIn("不要因为刚才回复过就继续回复", kwargs["system_prompt"])
+        self.assertEqual(self.items[0].wake_key, key)
+        self.assertEqual(self.items[0].wake_limits, limits)
+        self.assertEqual(self.items[0].wake_session_id, session_id)
+        self.assertFalse(self.items[0].wake_starts_session)
+
+    async def test_initial_wake_candidate_carries_new_session_metadata(self):
+        event = FakeEvent()
+        await self.orchestrator(wake={"enabled": True}).handle(
+            event, types.SimpleNamespace(priority=1), wake_context=True
+        )
+        item = self.items[0]
+        self.assertEqual(item.wake_key, load_utils_module("wake_manager").WakeManager.key_for_event(event))
+        self.assertIsNotNone(item.wake_limits)
+        self.assertTrue(item.wake_session_id)
+        self.assertTrue(item.wake_starts_session)
+
+    async def test_non_wake_context_does_not_add_wake_instruction(self):
+        await self.orchestrator().handle(FakeEvent(), types.SimpleNamespace(priority=1))
+        self.assertNotIn("不要因为刚才回复过就继续回复",
+                         self.provider.text_chat.call_args.kwargs["system_prompt"])
 
     async def test_invalid_json_does_not_send(self):
         self.provider.text_chat.return_value.completion_text = "invalid"

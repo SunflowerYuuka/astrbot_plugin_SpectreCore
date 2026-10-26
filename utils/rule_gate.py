@@ -69,12 +69,12 @@ class RuleGate:
         return getattr(getattr(event, "message_obj", None), "message", None) or []
 
     @classmethod
-    async def evaluate(cls, event, config: AstrBotConfig, queue_depth: int = 0) -> GateResult:
+    def _hard_check(cls, event, config) -> GateResult | None:
         if not HistoryStorage.is_chat_enabled(event):
             return GateResult("skip", "chat_disabled")
 
         now = time.time()
-        mute = config.get("_temp_mute", {})
+        mute = config.get("_temp_mute", {}) or {}
         if mute and mute.get("until", 0) > now:
             return GateResult("skip", "muted")
 
@@ -93,10 +93,11 @@ class RuleGate:
         if LLMUtils.is_llm_in_progress(event.get_platform_name(), is_private, chat_id):
             return GateResult("skip", "in_progress")
 
-        message_id = str(getattr(event.message_obj, "message_id", "") or "")
+        message_id = str(getattr(getattr(event, "message_obj", None), "message_id", "") or "")
         message_key = f"{event.get_platform_name()}:{chat_id}:{message_id}"
         cls._seen_message_ids = {
-            k: v for k, v in cls._seen_message_ids.items() if now - v < cls._seen_ttl
+            key: timestamp for key, timestamp in cls._seen_message_ids.items()
+            if now - timestamp < cls._seen_ttl
         }
         if message_id and message_key in cls._seen_message_ids:
             return GateResult("skip", "duplicate")
@@ -107,10 +108,36 @@ class RuleGate:
         if any(word in text for word in blacklist):
             return GateResult("skip", "blacklist_keyword")
 
-        orch = config.get("reply_orchestration", {}) or {}
         limited = cls.reply_limit_reason(event, config)
         if limited:
             return GateResult("skip", limited)
+        return None
+
+    @classmethod
+    def check_wake_message(cls, event, config: AstrBotConfig, queue_depth: int = 0) -> GateResult:
+        hard_result = cls._hard_check(event, config)
+        if hard_result is not None:
+            return hard_result
+
+        max_queue = (config.get("reply_orchestration", {}) or {}).get(
+            "outbound_queue", {}
+        ).get("max_queue_size", 200)
+        if queue_depth >= max_queue:
+            return GateResult("skip", "queue_full")
+        return GateResult("candidate", "wake", priority=1, trigger="wake")
+
+    @classmethod
+    async def evaluate(cls, event, config: AstrBotConfig, queue_depth: int = 0) -> GateResult:
+        hard_result = cls._hard_check(event, config)
+        if hard_result is not None:
+            return hard_result
+
+        text = (event.get_message_outline() or "").strip()
+
+        is_private = event.is_private_chat()
+        chat_id = event.get_sender_id() if is_private else event.get_group_id()
+
+        orch = config.get("reply_orchestration", {}) or {}
 
         trigger = None
         components = cls._components(event)

@@ -1,4 +1,5 @@
 import types
+import time
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -52,6 +53,51 @@ class RuleGateTest(unittest.IsolatedAsyncioTestCase):
         self.history = load_utils_module("history_storage").HistoryStorage
         self.history.config = config()
         self.mod.RuleGate.reset_state()
+
+    def test_wake_check_accepts_message_without_normal_trigger(self):
+        result = self.mod.RuleGate.check_wake_message(FakeEvent("ordinary text"), config())
+        self.assertEqual((result.action, result.reason, result.trigger), ("candidate", "wake", "wake"))
+
+    def test_wake_check_rejects_hard_gate_failures_without_a_trigger(self):
+        gate = self.mod.RuleGate
+        cases = [
+            (FakeEvent("!help"), config(model_frequency={"ignored_prefixes": ["!"]}), "command_prefix"),
+            (FakeEvent("拉黑内容"), config(model_frequency={"blacklist_keywords": ["拉黑"]}), "blacklist_keyword"),
+        ]
+        for event, cfg, reason in cases:
+            with self.subTest(reason=reason):
+                result = gate.check_wake_message(event, cfg)
+                self.assertEqual((result.action, result.reason), ("skip", reason))
+
+        self.history.config = config(enable_all_groups=False)
+        disabled = gate.check_wake_message(FakeEvent("ordinary text"), self.history.config)
+        self.assertEqual(disabled.reason, "chat_disabled")
+        self.history.config = config()
+
+        muted = config(_temp_mute={"until": time.time() + 60})
+        result = gate.check_wake_message(FakeEvent("ordinary text"), muted)
+        self.assertEqual(result.reason, "muted")
+
+        self_id_event = FakeEvent("ordinary text")
+        self_id_event.get_sender_id = lambda: "bot"
+        result = gate.check_wake_message(self_id_event, config())
+        self.assertEqual(result.reason, "self")
+
+        duplicate = FakeEvent("ordinary text")
+        duplicate.message_obj.message_id = "wake-duplicate"
+        self.assertEqual(gate.check_wake_message(duplicate, config()).action, "candidate")
+        self.assertEqual(gate.check_wake_message(duplicate, config()).reason, "duplicate")
+
+        limited = FakeEvent("ordinary text", group="limited")
+        gate.record_reply(limited)
+        result = gate.check_wake_message(limited, config())
+        self.assertEqual(result.reason, "cooldown")
+
+    def test_wake_check_respects_queue_capacity(self):
+        result = self.mod.RuleGate.check_wake_message(
+            FakeEvent("ordinary text"), config(), queue_depth=200
+        )
+        self.assertEqual((result.action, result.reason), ("skip", "queue_full"))
 
     async def test_keyword_is_candidate(self):
         result = await self.mod.RuleGate.evaluate(FakeEvent("这里触发一下"), config())

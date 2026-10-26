@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 
 from astrbot.api.all import logger
+from .wake_manager import WakeLimits
 
 
 @dataclass
@@ -23,10 +24,14 @@ class OutboundItem:
     reply_id: str
     attempts: int = 0
     not_before: float = 0.0
+    wake_key: str | None = None
+    wake_limits: WakeLimits | None = None
+    wake_session_id: str | None = None
+    wake_starts_session: bool = False
 
 
 class OutboundQueue:
-    def __init__(self, config, sender, history_saver):
+    def __init__(self, config, sender, history_saver, delivery_callback=None):
         q = (config.get("reply_orchestration", {}) or {}).get("outbound_queue", {}) or {}
         self.config = config
         self.enabled = bool(q.get("enabled", False))
@@ -40,6 +45,7 @@ class OutboundQueue:
         self.retries = max(0, q.get("send_retries", 2))
         self.sender = sender
         self.history_saver = history_saver
+        self.delivery_callback = delivery_callback
         self._items: list[OutboundItem] = []
         self._reply_ids: dict[str, float] = {}
         self._reply_ttl = 300.0
@@ -112,11 +118,19 @@ class OutboundQueue:
         except Exception as exc:
             logger.warning(f"发送失败 {item.item_id}: {exc}")
             return False
-        if ok and save_history:
+        if not ok:
+            return False
+        history_saved = False
+        if save_history:
             try:
-                await self.history_saver(item)
+                history_saved = bool(await self.history_saver(item))
             except Exception as exc:
                 logger.error(f"保存 bot 历史失败 {item.item_id}: {exc}")
+        if history_saved and self.delivery_callback is not None:
+            try:
+                await self.delivery_callback(item)
+            except Exception as exc:
+                logger.error(f"发送成功回调失败 {item.item_id}: {exc}")
         return bool(ok)
 
     async def enqueue(self, item):

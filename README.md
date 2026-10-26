@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.5.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.6.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -132,6 +132,42 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 
 使用 `legacy` + `read_air=true` 时，本插件会对本次请求关闭流式发送，等待完整生成后判断 `<NO_RESPONSE>`，再进入 AstrBot 的引用装饰和发送流程。即使 AstrBot 全局开启流式也会生效；全局设置保持不变，关闭读空气后继续沿用原来的流式选择。
 
+### 唤醒会话（默认关闭）
+
+开启 `reply_orchestration.wake.enabled` 后，成功发送一次自主回复会为该账号和聊天开启短期唤醒会话。后续消息仍需通过普通规则门控，再由一次 JSON 模型判断决定是否回复并生成内容；`ignore` 只跳过当前消息，不结束会话，仍会继续观察后续消息。只有实际发送成功才会激活会话，模型判定回复本身不算激活。
+
+```json
+{
+  "reply_orchestration": {
+    "wake": {
+      "enabled": true,
+      "duration_seconds": 300,
+      "max_messages": 5,
+      "idle_timeout_seconds": 120,
+      "groups": {
+        "123456": {
+          "duration_seconds": 600,
+          "max_messages": 8,
+          "idle_timeout_seconds": 180
+        }
+      },
+      "private": {
+        "duration_seconds": 300,
+        "max_messages": 5,
+        "idle_timeout_seconds": 120
+      },
+      "admin": {
+        "duration_seconds": 0,
+        "max_messages": 0,
+        "idle_timeout_seconds": 120
+      }
+    }
+  }
+}
+```
+
+`duration_seconds`、`max_messages` 和 `idle_timeout_seconds` 分别限制会话总时长、期间可消费的消息数和无活动时长；任一非零限制到达即退出，设为 `0` 表示该项不限。群聊按群 ID 覆盖全局值，私聊使用 `private`，管理员使用 `admin` 且优先于群聊／私聊配置。未填写的作用域字段沿用全局值，显式 `0` 则保持不限。达到任一限制后会话结束；唤醒不会绕过门控或无条件续聊。
+
 ## 📖 文档
 
 - [指令说明](./docs/commands.md) - 详细的指令用法和参数说明
@@ -140,6 +176,12 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.6.0 (2026-10-26)
+
+- 新增可配置唤醒会话；会话消息通过一次 JSON 判断决定是否回复并生成，不会无条件续聊。
+- 唤醒会话在空闲超时、总时长或消息数任一限制到达时退出；`ignore` 仅跳过当前消息并继续观察，只有消息实际发送成功才激活会话。
+- 支持全局、群聊、私聊和管理员限制配置，管理员配置优先；任一限制设为 `0` 表示不限。
 
 ### v2.5.1 (2026-10-23)
 

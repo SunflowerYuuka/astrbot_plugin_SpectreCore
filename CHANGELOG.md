@@ -2,6 +2,11 @@
 
 SpectreCore 的主要版本更新记录。历史版本的独立文件仍保存在 `changelogs/` 目录。
 
+## v2.6.1
+
+- **修复安装失败** - 修复 AstrBot 4.29.1 加载 v2.6.0 时报 `string indices must be integers, not 'str'` 的问题；`reply_orchestration.wake.groups` 改用 AstrBot 支持的 `dict` 类型。
+- **群聊覆盖配置** - 键为群号，值为 JSON 对象，可包含 `duration_seconds`、`max_messages`、`idle_timeout_seconds`；未填写字段继承全局值，显式 `0` 表示不限。
+
 ## v2.6.0
 
 - **唤醒会话** - 新增默认关闭的 `reply_orchestration.wake`，支持全局、群聊、私聊和管理员范围配置；管理员配置优先，`0` 表示对应限制不限。

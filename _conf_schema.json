@@ -359,24 +359,9 @@
                     },
                     "groups": {
                         "description": "群聊唤醒会话覆盖值，未配置字段继承全局值",
-                        "type": "object",
-                        "items": {
-                            "type": "object",
-                            "items": {
-                                "duration_seconds": {
-                                    "description": "唤醒会话持续时间（秒）",
-                                    "type": "int"
-                                },
-                                "max_messages": {
-                                    "description": "唤醒会话最多续接消息数",
-                                    "type": "int"
-                                },
-                                "idle_timeout_seconds": {
-                                    "description": "唤醒会话空闲超时（秒）",
-                                    "type": "int"
-                                }
-                            }
-                        }
+                        "type": "dict",
+                        "hint": "键为群号，值为 JSON 对象，可包含 duration_seconds、max_messages、idle_timeout_seconds；未填写的字段继承全局值，显式 0 表示不限。",
+                        "default": {}
                     }
                 }
             },

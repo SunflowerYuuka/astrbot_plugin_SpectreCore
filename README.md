@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.6.0-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.6.1-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -176,6 +176,11 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.6.1 (2026-10-26)
+
+- 修复 AstrBot 4.29.1 安装 v2.6.0 时报 `string indices must be integers, not 'str'` 的问题。
+- 群聊唤醒覆盖配置改用 AstrBot 支持的 `dict` 类型；键为群号，值为包含 `duration_seconds`、`max_messages`、`idle_timeout_seconds` 的 JSON 对象。
 
 ### v2.6.0 (2026-10-26)
 

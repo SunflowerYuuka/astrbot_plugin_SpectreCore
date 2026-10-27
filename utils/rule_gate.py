@@ -53,7 +53,19 @@ class RuleGate:
         cls._last_reply_at[key] = max(times, default=0)
 
     @classmethod
-    def reply_limit_reason(cls, event, config) -> str | None:
+    def is_direct_address(cls, event) -> bool:
+        self_id = str(event.get_self_id())
+        for component in cls._components(event):
+            if str(getattr(component, "qq", "")) == self_id:
+                return True
+            if str(getattr(component, "sender_id", "")) == self_id:
+                return True
+        return False
+
+    @classmethod
+    def reply_limit_reason(cls, event, config, bypass: bool = False) -> str | None:
+        if bypass:
+            return None
         key, now = cls._chat_key(event), time.time()
         orch = config.get("reply_orchestration", {}) or {}
         if now - cls._last_reply_at.get(key, 0) < orch.get("cooldown_ms", 3000) / 1000:
@@ -108,7 +120,9 @@ class RuleGate:
         if any(word in text for word in blacklist):
             return GateResult("skip", "blacklist_keyword")
 
-        limited = cls.reply_limit_reason(event, config)
+        limited = cls.reply_limit_reason(
+            event, config, bypass=cls.is_direct_address(event)
+        )
         if limited:
             return GateResult("skip", limited)
         return None

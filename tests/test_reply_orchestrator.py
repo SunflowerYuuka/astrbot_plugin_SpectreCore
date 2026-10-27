@@ -97,6 +97,38 @@ class OrchestratorTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(item.wake_session_id)
         self.assertTrue(item.wake_starts_session)
 
+    async def test_direct_mention_skips_wake_instruction_but_keeps_metadata(self):
+        wake = load_utils_module("wake_manager")
+        event = FakeEvent()
+        key = wake.WakeManager.key_for_event(event)
+        limits = wake.WakeLimits(900, 4, 250)
+        wake.WakeManager.activate(key, limits)
+        event.message_obj.message = [types.SimpleNamespace(qq="bot")]
+        await self.orchestrator().handle(
+            event, types.SimpleNamespace(priority=2, reason="mention"), wake_context=True
+        )
+        kwargs = self.provider.text_chat.call_args.kwargs
+        self.assertNotIn("唤醒会话判断补充", kwargs["system_prompt"])
+        self.assertEqual(self.items[0].wake_key, key)
+        self.assertEqual(self.items[0].wake_limits, limits)
+
+    async def test_direct_mention_bypasses_reply_cooldown(self):
+        event = FakeEvent()
+        event.message_obj.message = [types.SimpleNamespace(qq="bot")]
+        self.mod.RuleGate.record_reply(event)
+        await self.orchestrator().handle(
+            event, types.SimpleNamespace(priority=2, reason="mention"), wake_context=False
+        )
+        self.assertEqual(len(self.items), 1)
+
+    async def test_non_direct_message_respects_reply_cooldown(self):
+        event = FakeEvent()
+        self.mod.RuleGate.record_reply(event)
+        await self.orchestrator().handle(
+            event, types.SimpleNamespace(priority=1, reason="keyword"), wake_context=False
+        )
+        self.assertEqual(self.items, [])
+
     async def test_non_wake_context_does_not_add_wake_instruction(self):
         await self.orchestrator().handle(FakeEvent(), types.SimpleNamespace(priority=1))
         self.assertNotIn("不要因为刚才回复过就继续回复",

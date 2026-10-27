@@ -58,6 +58,36 @@ class RuleGateTest(unittest.IsolatedAsyncioTestCase):
         result = self.mod.RuleGate.check_wake_message(FakeEvent("ordinary text"), config())
         self.assertEqual((result.action, result.reason, result.trigger), ("candidate", "wake", "wake"))
 
+    def test_direct_address_is_detected_from_mention_and_reply(self):
+        gate = self.mod.RuleGate
+        mention = FakeEvent("hi", components=[types.SimpleNamespace(qq="bot")])
+        reply = FakeEvent("hi", components=[types.SimpleNamespace(sender_id="bot")])
+        other = FakeEvent("hi", components=[types.SimpleNamespace(qq="someone")])
+        self.assertTrue(gate.is_direct_address(mention))
+        self.assertTrue(gate.is_direct_address(reply))
+        self.assertFalse(gate.is_direct_address(other))
+
+    def test_direct_address_bypasses_reply_limits_in_wake_check(self):
+        gate = self.mod.RuleGate
+        event = FakeEvent("hi", components=[types.SimpleNamespace(qq="bot")])
+        gate.record_reply(event)
+        result = gate.check_wake_message(event, config())
+        self.assertEqual(result.action, "candidate")
+
+    async def test_direct_address_bypasses_reply_limits_in_evaluate(self):
+        gate = self.mod.RuleGate
+        event = FakeEvent("hi", components=[types.SimpleNamespace(qq="bot")])
+        gate.record_reply(event)
+        result = await gate.evaluate(event, config())
+        self.assertEqual((result.action, result.trigger), ("candidate", "mention"))
+
+    async def test_non_direct_message_still_respects_cooldown(self):
+        gate = self.mod.RuleGate
+        event = FakeEvent("触发")
+        gate.record_reply(event)
+        result = await gate.evaluate(event, config())
+        self.assertEqual((result.action, result.reason), ("skip", "cooldown"))
+
     def test_wake_check_rejects_hard_gate_failures_without_a_trigger(self):
         gate = self.mod.RuleGate
         cases = [

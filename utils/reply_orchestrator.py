@@ -31,7 +31,7 @@ class ReplyOrchestrator:
         orch = config.get("reply_orchestration", {}) or {}
         return await resolve_provider(self.context, event.unified_msg_origin, orch.get("provider_id", ""))
 
-    async def _generate(self, event, wake_context=False):
+    async def _generate(self, event, wake_instruction=False):
         async with self._semaphore:
             provider = self.provider_resolver(event, self.config)
             if inspect.isawaitable(provider):
@@ -41,7 +41,7 @@ class ReplyOrchestrator:
                 event, self.config, self.context,
                 decision_mode=True, include_images=supports_images,
             )
-            if wake_context:
+            if wake_instruction:
                 request.system_prompt += build_wake_instruction()
             return await provider.text_chat(
                 prompt=request.prompt,
@@ -54,7 +54,8 @@ class ReplyOrchestrator:
 
     async def handle(self, event, gate_result, wake_context=False):
         LLMUtils.disable_default_llm(event)
-        if RuleGate.reply_limit_reason(event, self.config):
+        direct_address = RuleGate.is_direct_address(event)
+        if RuleGate.reply_limit_reason(event, self.config, bypass=direct_address):
             return
         if not LLMUtils.mark_in_progress(event, only_if_idle=True):
             return
@@ -77,7 +78,9 @@ class ReplyOrchestrator:
                     wake_limits = WakeManager.resolve_limits(event, self.config)
                     wake_session_id = uuid.uuid4().hex
                     wake_starts_session = True
-            response = await asyncio.wait_for(self._generate(event, wake_context), self.timeout)
+            response = await asyncio.wait_for(
+                self._generate(event, wake_context and not direct_address), self.timeout
+            )
             elapsed = (time.monotonic() - (event.get_extra("spectrecore_received_at") or started)) * 1000
             logger.debug(f"回复生成 generation_ms={elapsed:.1f} queue_depth={getattr(self.queue, 'depth', 0)}")
             decision = parse_decision(

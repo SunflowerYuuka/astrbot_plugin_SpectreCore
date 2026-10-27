@@ -4,7 +4,7 @@
 
 ![SpectreCore](https://avatars.githubusercontent.com/u/129108081?s=48&v=4)
 
-[![version](https://img.shields.io/badge/version-v2.6.3-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
+[![version](https://img.shields.io/badge/version-v2.6.4-blue.svg?style=flat-square)](https://github.com/SunflowerYuuka/astrbot_plugin_SpectreCore)
 [![license](https://img.shields.io/badge/license-AGPL--3.0-green.svg?style=flat-square)](LICENSE)
 [![author](https://img.shields.io/badge/author-23q3-orange.svg?style=flat-square)](https://github.com/23q3)
 
@@ -178,6 +178,11 @@ SpectreCore (影芯) 是一个为 AstrBot 设计的高级群聊互动插件，�
 - [更新日志](./CHANGELOG.md) - 项目版本历史和功能变化
 
 ## 📋 最新版本
+
+### v2.6.4 (2026-10-26)
+
+- 修复群聊内 @ 机器人无响应：直接 @ / 回复机器人时不再追加“可忽略”的唤醒提示。
+- 直接 @ 会绕过冷却和每分钟回复上限，避免被自主回复的限流误伤。
 
 ### v2.6.3 (2026-10-26)
 
